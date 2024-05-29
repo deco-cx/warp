@@ -18,7 +18,7 @@ To start the Warp server, import the `start` function from the Warp package and 
 #### Example
 
 ```typescript
-import { start } from "jsr:@mcandeia/warp";
+import { start } from "jsr:@deco/warp";
 
 const port = 8080; // The port where the Warp server will listen
 const apiKeys = ["YOUR_API_KEY1", "YOUR_API_KEY2"]; // Array of API keys for authentication
@@ -42,7 +42,7 @@ To connect a client to the Warp server, import the `connect` function from the W
 #### Example
 
 ```typescript
-import { connect } from "jsr:@mcandeia/warp";
+import { connect } from "jsr:@deco/warp";
 
 const port = 3000; // The local port you want to expose
 const domain = "www.your.domain.com"; // The domain name for your service
