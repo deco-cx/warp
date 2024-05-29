@@ -117,24 +117,30 @@ async function handleWebSocket(message: RequestStartMessage, state: ClientState)
         state.wsMessages[message.id] = wsCh.out;
         (async () => {
             try {
-                for await (const data of wsCh.in.recv()) {
+                for await (const data of wsCh.in.recv(state.ch.out.signal)) {
                     await state.ch.out.send({
                         type: "ws-message",
                         data,
                         id: message.id,
                     });
                 }
+                if (state.ch.out.signal.aborted) {
+                    return;
+                }
                 await state.ch.out.send({
                     type: "ws-closed",
                     id: message.id,
                 });
-            } catch (_err) {
-                // ignore
-            } finally {
+            } catch (error) {
+                if (state.ch.out.signal.aborted) {
+                    return;
+                }
                 await state.ch.out.send({
                     type: "ws-closed",
                     id: message.id,
-                }).catch(_err => { });
+                }).catch(ignoreIfClosed);
+                throw error;
+            } finally {
                 delete state.wsMessages[message.id];
             }
         })();
@@ -143,7 +149,7 @@ async function handleWebSocket(message: RequestStartMessage, state: ClientState)
             type: "data-end",
             error: err,
             id: message.id
-        }).catch(console.error);
+        }).catch(ignoreIfClosed);
     }
 }
 
@@ -155,34 +161,44 @@ async function handleWebSocket(message: RequestStartMessage, state: ClientState)
  */
 async function doFetch(request: RequestStartMessage & { body?: ReadableStream; }, state: ClientState, clientCh: Channel<ClientMessage>) {
     // Read from the stream
-    const response = await fetch(new URL(request.url, state.localAddr), {
-        ...state.client ? { client: state.client } : {},
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-    });
-    await clientCh.send({
-        type: "response-start",
-        id: request.id,
-        statusCode: response.status,
-        statusMessage: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-    })
-    const body = response?.body;
-    const stream = body ? makeChanStream(body) : undefined;
-    for await (const chunk of stream?.recv() ?? []) {
-        await clientCh.send({
-            type: "data",
-            id: request.id,
-            chunk,
+    const signal = clientCh.signal;
+    try {
+        const response = await fetch(new URL(request.url, state.localAddr), {
+            ...state.client ? { client: state.client } : {},
+            method: request.method,
+            headers: request.headers,
+            body: request.body,
+            signal,
         });
+        await clientCh.send({
+            type: "response-start",
+            id: request.id,
+            statusCode: response.status,
+            statusMessage: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+        })
+        const body = response?.body;
+        const stream = body ? makeChanStream(body) : undefined;
+        for await (const chunk of stream?.recv(signal) ?? []) {
+            await clientCh.send({
+                type: "data",
+                id: request.id,
+                chunk,
+            });
+        }
+        if (signal.aborted) {
+            return;
+        }
+        await clientCh.send({
+            type: "data-end",
+            id: request.id,
+        });
+    } catch (err) {
+        if (signal.aborted) {
+            return;
+        }
+        throw err;
     }
-    await clientCh.send({
-        type: "data-end",
-        id: request.id,
-    });
-
-    return response;
 }
 
 /**

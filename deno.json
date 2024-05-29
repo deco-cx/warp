@@ -1,8 +1,8 @@
 {
   "name": "@deco/warp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "exports": "./mod.ts",
   "tasks": {
-    "start": "deno run -A main.ts"
+    "check": "deno fmt && deno lint && deno check mod.ts"
   }
 }

@@ -88,20 +88,32 @@ export const start = (options?: ServerOptions): Deno.HttpServer<Deno.NetAddr> =>
           dataChan: makeChan(),
         }
         try {
+          const signal = ch.out.signal;
           await ch.out.send(requestForward);
           const dataChan = req.body ? makeChanStream(req.body) : undefined;
           (async () => {
-            for await (const chunk of dataChan?.recv() ?? []) {
+            try {
+              for await (const chunk of dataChan?.recv(signal) ?? []) {
+                await ch.out.send({
+                  type: "request-data",
+                  id: messageId,
+                  chunk,
+                });
+              }
+              if (signal.aborted) {
+                return;
+              }
               await ch.out.send({
-                type: "request-data",
+                type: "request-end",
                 id: messageId,
-                chunk,
               });
+            } catch (err) {
+              responseObject.resolve(new Response("Error sending request to remote client", { status: 503 }));
+              if (signal.aborted) {
+                return;
+              }
+              console.log(`unexpected error when sending request`, err, req, messageId);
             }
-            await ch.out.send({
-              type: "request-end",
-              id: messageId,
-            });
           })()
           return responseObject.promise;
         } catch (err) {

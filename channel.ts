@@ -1,9 +1,23 @@
 import { Queue } from "./queue.ts";
 
 export interface Channel<T> {
+    closed: Promise<void>;
+    signal: AbortSignal;
     close(): void;
     send(value: T): Promise<void>;
-    recv(): AsyncIterableIterator<T>;
+    recv(signal?: AbortSignal): AsyncIterableIterator<T>;
+}
+
+export const link = (...signals: AbortSignal[]): AbortSignal => {
+    const ctrl = new AbortController();
+    for (const signal of signals) {
+        signal.onabort = (evt) => {
+            if (!ctrl.signal.aborted) {
+                ctrl.abort(evt);
+            }
+        }
+    }
+    return ctrl.signal;
 }
 
 export class ClosedChannelError extends Error {
@@ -38,17 +52,18 @@ export const makeChan = <T>(): Channel<T> => {
         ctrl.abort();
     };
 
-    const recv = async function* (): AsyncIterableIterator<T> {
+    const recv = async function* (signal?: AbortSignal): AsyncIterableIterator<T> {
+        const linked = signal ? link(ctrl.signal, signal) : ctrl.signal;
         while (true) {
-            if (ctrl.signal.aborted) {
+            if (linked.aborted) {
                 return;
             }
             try {
-                const next = await queue.pop({ signal: ctrl.signal });
+                const next = await queue.pop({ signal: linked });
                 next.resolve();
                 yield next.value;
             } catch (_err) {
-                if (ctrl.signal.aborted) {
+                if (linked.aborted) {
                     return;
                 }
                 throw _err;
@@ -56,7 +71,7 @@ export const makeChan = <T>(): Channel<T> => {
         }
     };
 
-    return { send, recv, close };
+    return { send, recv, close, signal: ctrl.signal, closed: abortPromise.promise };
 };
 
 export interface DuplexChannel<TSend, TReceive> {
