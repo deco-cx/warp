@@ -126,11 +126,21 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (state, message) 
         const socketChan = await makeWebSocket<ArrayBuffer, ArrayBuffer>(socket, false);
         request.socketChan = socketChan.out;
         (async () => {
-            for await (const msg of socketChan.in.recv()) {
-                await state.ch.out.send({ type: "ws-message", id: message.id, data: msg });
+            try {
+                for await (const msg of socketChan.in.recv()) {
+                    await state.ch.out.send({ type: "ws-message", id: message.id, data: msg });
+                }
+                await state.ch.out.send({ type: "ws-closed", id: message.id })
+                socket.close();
+            } catch (error) {
+                console.log("sending through a closed channel error", error, message);
+            } finally {
+                try {
+                    socket.close();
+                } catch (_err) {
+                    // ignore
+                }
             }
-            await state.ch.out.send({ type: "ws-closed", id: message.id })
-            socket.close();
         })()
     }
     catch (err) {
