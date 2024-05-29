@@ -1,4 +1,4 @@
-import { type Channel, makeChan, makeChanStream, makeReadableStream, makeWebSocket } from "./channel.ts";
+import { type Channel, ignoreIfClosed, makeChan, makeChanStream, makeReadableStream, makeWebSocket } from "./channel.ts";
 import type { ClientMessage, ClientState, ErrorMessage, RegisteredMessage, RequestDataEndMessage, RequestDataMessage, RequestStartMessage, ServerMessage, ServerMessageHandler, WSMessage } from "./messages.ts";
 import { ensureChunked } from "./server.ts";
 
@@ -29,11 +29,11 @@ const onRequestStart: ServerMessageHandler<RequestStartMessage> = async (state, 
         return;
     }
     if (!message.hasBody) {
-        doFetch(message, state, state.ch.out);
+        doFetch(message, state, state.ch.out).catch(ignoreIfClosed);
     } else {
         const bodyData = makeChan<Uint8Array>();
         state.requestBody[message.id] = bodyData;
-        doFetch({ ...message, body: makeReadableStream(bodyData) }, state, state.ch.out).finally(() => {
+        doFetch({ ...message, body: makeReadableStream(bodyData) }, state, state.ch.out).catch(ignoreIfClosed).finally(() => {
             delete state.requestBody[message.id];
         });
     }

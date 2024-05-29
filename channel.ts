@@ -6,6 +6,19 @@ export interface Channel<T> {
     recv(): AsyncIterableIterator<T>;
 }
 
+export class ClosedChannelError extends Error {
+    constructor() {
+        super("Channel is closed");
+    }
+}
+export const ifClosedChannel = (cb: () => Promise<void> | void) => (err: unknown) => {
+    if (err instanceof ClosedChannelError) {
+        return cb();
+    }
+    throw err;
+}
+
+export const ignoreIfClosed = ifClosedChannel(() => { })
 export const makeChan = <T>(): Channel<T> => {
     const queue: Queue<{ value: T, resolve: () => void }> = new Queue();
     const ctrl = new AbortController();
@@ -16,7 +29,7 @@ export const makeChan = <T>(): Channel<T> => {
 
     const send = (value: T): Promise<void> => {
         return new Promise((resolve, reject) => {
-            if (ctrl.signal.aborted) reject(new Error("Channel is closed"));
+            if (ctrl.signal.aborted) reject(new ClosedChannelError());
             queue.push({ value, resolve });
         });
     };
