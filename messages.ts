@@ -84,12 +84,17 @@ export interface ClientState {
     localAddr: string;
     client?: Deno.HttpClient
 }
-export interface ServerState {
+
+export interface ClientHostController {
+    link: (host: string) => void;
+}
+export interface ServerConnectionState {
+    clientId: string;
     socket: WebSocket;
     ch: DuplexChannel<ServerMessage, ClientMessage>;
-    domainsToConnections: Record<string, DuplexChannel<ServerMessage, ClientMessage>>;
+    controller: ClientHostController;
     ongoingRequests: Record<string, RequestObject>;
     apiKeys: string[];
 }
 export type ServerMessageHandler<TServerMessage extends ServerMessage = ServerMessage> = (state: ClientState, message: TServerMessage) => Promise<void> | void;
-export type ClientMessageHandler<TClientMessage extends ClientMessage = ClientMessage> = (state: ServerState, message: TClientMessage) => Promise<void> | void;
+export type ClientMessageHandler<TClientMessage extends ClientMessage = ClientMessage> = (state: ServerConnectionState, message: TClientMessage) => Promise<void> | void;

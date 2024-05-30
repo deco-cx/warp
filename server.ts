@@ -1,6 +1,6 @@
-import { type DuplexChannel, makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
+import { makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
 import { handleClientMessage } from "./handlers.server.ts";
-import type { ClientMessage, RequestObject, ServerMessage, ServerState } from "./messages.ts";
+import type { ClientMessage, ServerConnectionState, ServerMessage } from "./messages.ts";
 
 /**
  * Ensures that the given chunk is in the form of a Uint8Array.
@@ -16,8 +16,8 @@ export const ensureChunked = (chunk: Uint8Array | Record<string, Uint8Array[numb
 }
 
 
-const domainsToConnections: Record<string, DuplexChannel<ServerMessage, ClientMessage>> = {};
-const ongoingRequests: Record<string, RequestObject> = {};
+const serverStates: Record<string, ServerConnectionState> = {};
+const hostToClientId: Record<string, string> = {};
 
 /**
  * Represents options for configuring the server.
@@ -71,23 +71,45 @@ export const serveHandler = (options: HandlerOptions): (request: Request) => Res
       const { socket, response } = Deno.upgradeWebSocket(req);
       (async () => {
         const ch = await makeWebSocket<ServerMessage, ClientMessage>(socket);
-        const state: ServerState = {
+        const clientId = crypto.randomUUID();
+        const hosts: string[] = [];
+        const state: ServerConnectionState = {
+          clientId,
           socket,
           ch,
-          domainsToConnections,
-          ongoingRequests,
+          controller: {
+            link: (host) => {
+              hosts.push(host);
+              hostToClientId[host] = clientId;
+            }
+          },
+          ongoingRequests: {},
           apiKeys,
         }
-        for await (const message of ch.in.recv()) {
-          await handleClientMessage(state, message);
+        serverStates[state.clientId] = state;
+        try {
+          for await (const message of ch.in.recv(req.signal)) {
+            await handleClientMessage(state, message);
+          }
+        } catch (_err) {
+          // ignore
+        } finally {
+          delete serverStates[state.clientId];
+          for (const host of hosts) {
+            delete hostToClientId[host];
+          }
         }
       })()
       return response;
 
     }
     const host = req.headers.get("host");
-    if (host && host in domainsToConnections) {
-      const ch = domainsToConnections[host];
+    if (host && host in hostToClientId) {
+      const serverState = serverStates[hostToClientId[host]];
+      if (!serverState) {
+        return new Response("No registration for domain and/or remote service not available", { status: 503 });
+      }
+      const { ch, ongoingRequests } = serverState;
       const messageId = crypto.randomUUID();
       const hasBody = !!req.body;
       const url = new URL(req.url);

@@ -162,7 +162,7 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (state, message) 
  */
 const register: ClientMessageHandler<RegisterMessage> = async (state, message) => {
     if (state.apiKeys.includes(message.apiKey)) {
-        state.domainsToConnections[message.domain] = state.ch;
+        state.controller.link(message.domain);
         await state.ch.out.send({ type: "registered", domain: message.domain, id: message.id })
     } else {
         console.error(
@@ -197,7 +197,7 @@ const handlersByType: Record<ClientMessage["type"], ClientMessageHandler<any>> =
  * @param {ClientMessage} message - The message received from the server.
  */
 export const handleClientMessage: ClientMessageHandler = async (state, message) => {
-    console.info(new Date(), `[server]`, message.type, "id" in message ? message.id : "");
+    console.info(new Date(), message.type, "id" in message ? message.id : "");
     await handlersByType?.[message.type]?.(state, message)?.catch?.(err => {
         console.error("unexpected error happening when handling message", message, err);
         delete state.ongoingRequests[message.id];
