@@ -1,5 +1,5 @@
 import { connect } from "./client.ts";
-import { start } from "./server.ts";
+import { serve } from "./server.ts";
 
 const LOCAL_PORT = 8000;
 const _localServer = Deno.serve({
@@ -32,7 +32,7 @@ const _localServer = Deno.serve({
 
 const KEY = "c309424a-2dc4-46fe-bfc7-a7c10df59477";
 
-const _tunnelServer = start({
+const _tunnelServer = serve({
   apiKeys: [KEY],
   port: 8001
 });
@@ -42,7 +42,7 @@ await connect({
   domain,
   localAddr: "http://localhost:8000",
   server: "ws://localhost:8001",
-  token: KEY,
+  apiKey: KEY,
 });
 
 

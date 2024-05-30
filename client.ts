@@ -5,13 +5,13 @@ import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
 /**
  * Options for establishing a connection.
  * @typedef {Object} ConnectOptions
- * @property {string} token - The authentication token for connecting to the server.
+ * @property {string} apiKey - The apiKey used for connecting to the server.
  * @property {string} domain - The domain to register the connection with.
  * @property {string} server - The WebSocket server URL.
  * @property {string} localAddr - The local address for the WebSocket connection.
  */
 export interface ConnectOptions {
-    token: string;
+    apiKey: string;
     domain: string;
     server: string;
     localAddr: string;
@@ -48,7 +48,7 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
     await ch.out.send({
         id: crypto.randomUUID(),
         type: "register",
-        apiKey: opts.token,
+        apiKey: opts.apiKey,
         domain: opts.domain,
     });
     const requestBody: Record<string, Channel<Uint8Array>> = {};

@@ -13,17 +13,17 @@ The Warp server opens a single HTTP port to which the Warp client connects and u
 
 ### Usage
 
-To start the Warp server, import the `start` function from the Warp package and call it with the appropriate configuration.
+To start the Warp server, import the `serve` function from the Warp package and call it with the appropriate configuration.
 
 #### Example
 
 ```typescript
-import { start } from "jsr:@deco/warp";
+import { serve } from "jsr:@deco/warp";
 
 const port = 8080; // The port where the Warp server will listen
 const apiKeys = ["YOUR_API_KEY1", "YOUR_API_KEY2"]; // Array of API keys for authentication
 
-start({ port, apiKeys });
+serve({ port, apiKeys });
 ```
 
 #### Parameters
@@ -47,13 +47,13 @@ import { connect } from "jsr:@deco/warp";
 const port = 3000; // The local port you want to expose
 const domain = "www.your.domain.com"; // The domain name for your service
 const server = "wss://YOUR_SERVER"; // The WebSocket URL of your Warp server
-const token = "YOUR_TOKEN"; // The authentication token
+const apiKey = "YOUR_API_KEY"; // The apiKey
 
 const { registered, closed } = await connect({
   domain,
   localAddr: `http://localhost:${port}`,
   server,
-  token,
+  apiKey,
 });
 
 await registered;
@@ -69,7 +69,7 @@ closed.then(() => {
 - `domain`: The domain name that will be used to access your localhost service.
 - `localAddr`: The local address of the service you want to expose (e.g., `http://localhost:3000`).
 - `server`: The WebSocket URL of your Warp server (e.g., `wss://YOUR_SERVER`).
-- `token`: The authentication token for connecting to the Warp server.
+- `apiKey`: The apiKey for connecting to the Warp server.
 
 #### Return Values
 
@@ -83,12 +83,12 @@ Here’s a complete example of setting up a Warp server and client:
 ### Server
 
 ```typescript
-import { start } from "jsr:@mcandeia/warp";
+import { serve } from "jsr:@deco/warp";
 
 const port = 8080;
 const apiKeys = ["YOUR_API_KEY1", "YOUR_API_KEY2"];
 
-start({ port, apiKeys });
+serve({ port, apiKeys });
 ```
 
 ### Client
@@ -99,14 +99,14 @@ import { connect } from "jsr:@mcandeia/warp";
 const port = 3000;
 const domain = "www.your.domain.com";
 const server = "wss://YOUR_SERVER";
-const token = "YOUR_TOKEN";
+const apiKey = "API_KEY";
 
 (async () => {
   const { registered, closed } = await connect({
     domain,
     localAddr: `http://localhost:${port}`,
     server,
-    token,
+    apiKey,
   });
 
   await registered;
