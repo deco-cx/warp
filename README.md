@@ -96,7 +96,7 @@ serve({ port, apiKeys });
 ### Client
 
 ```typescript
-import { connect } from "jsr:@mcandeia/warp";
+import { connect } from "jsr:@deco/warp";
 
 const port = 3000;
 const domain = "www.your.domain.com";
