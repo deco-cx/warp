@@ -11,10 +11,10 @@ import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
  * @property {string} localAddr - The local address for the WebSocket connection.
  */
 export interface ConnectOptions {
-    apiKey: string;
-    domain: string;
-    server: string;
-    localAddr: string;
+  apiKey: string;
+  domain: string;
+  server: string;
+  localAddr: string;
 }
 
 /**
@@ -24,8 +24,8 @@ export interface ConnectOptions {
  * @property {Promise<void>} registered - A promise that resolves when the connection is registered.
  */
 export interface Connected {
-    closed: Promise<void>;
-    registered: Promise<void>;
+  closed: Promise<void>;
+  registered: Promise<void>;
 }
 
 /**
@@ -34,48 +34,49 @@ export interface Connected {
  * @returns {Promise<Connected>} A promise that resolves with the connection status.
  */
 export const connect = async (opts: ConnectOptions): Promise<Connected> => {
-    const closed = Promise.withResolvers<void>();
-    const registered = Promise.withResolvers<void>();
-    const client = typeof Deno.createHttpClient === "function" ? Deno.createHttpClient({
-        allowHost: true,
-        proxy: {
-            url: opts.localAddr,
-        }
-    }) : undefined;
+  const closed = Promise.withResolvers<void>();
+  const registered = Promise.withResolvers<void>();
+  const client = typeof Deno.createHttpClient === "function"
+    ? Deno.createHttpClient({
+      allowHost: true,
+      proxy: {
+        url: opts.localAddr,
+      },
+    })
+    : undefined;
 
-    const socket = new WebSocket(`${opts.server}/_connect`);
-    const ch = await makeWebSocket<ClientMessage, ServerMessage>(socket);
-    await ch.out.send({
-        id: crypto.randomUUID(),
-        type: "register",
-        apiKey: opts.apiKey,
-        domain: opts.domain,
-    });
-    const requestBody: Record<string, Channel<Uint8Array>> = {};
-    const wsMessages: Record<string, Channel<ArrayBuffer>> = {};
+  const socket = new WebSocket(`${opts.server}/_connect`);
+  const ch = await makeWebSocket<ClientMessage, ServerMessage>(socket);
+  await ch.out.send({
+    id: crypto.randomUUID(),
+    type: "register",
+    apiKey: opts.apiKey,
+    domain: opts.domain,
+  });
+  const requestBody: Record<string, Channel<Uint8Array>> = {};
+  const wsMessages: Record<string, Channel<ArrayBuffer>> = {};
 
-    (async () => {
-        const state: ClientState = {
-            client,
-            localAddr: opts.localAddr,
-            live: false,
-            requestBody,
-            wsMessages,
-            ch,
+  (async () => {
+    const state: ClientState = {
+      client,
+      localAddr: opts.localAddr,
+      live: false,
+      requestBody,
+      wsMessages,
+      ch,
+    };
+    for await (const message of ch.in.recv()) {
+      try {
+        await handleServerMessage(state, message);
+        if (state.live) {
+          registered.resolve();
         }
-        for await (const message of ch.in.recv()) {
-            try {
-                await handleServerMessage(state, message);
-                if (state.live) {
-                    registered.resolve();
-                }
-            } catch (err) {
-                console.error(new Date(), "error handling message", err);
-                break;
-            }
-        }
-        closed.resolve();
-    })()
-    return { closed: closed.promise, registered: registered.promise };
-}
-
+      } catch (err) {
+        console.error(new Date(), "error handling message", err);
+        break;
+      }
+    }
+    closed.resolve();
+  })();
+  return { closed: closed.promise, registered: registered.promise };
+};

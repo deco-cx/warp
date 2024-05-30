@@ -507,10 +507,5 @@
     "https://esm.sh/v135/utils-merge@1.0.1/denonext/utils-merge.mjs": "0a8a3925b476b5a94da272bb8fbb63728b725185a80b28492825dfb3ca3a3542",
     "https://esm.sh/v135/vary@1.1.2/denonext/vary.mjs": "119fef5a9e3d5a74c698ded1a4edd8acfdf75db69c6daabf631bd773964ac860",
     "https://esm.sh/v135/ws@8.17.0/denonext/ws.mjs": "098384c6d6b787c4074dae8141a61bfa93a271ccb699b4b426c75141c9ef5560"
-  },
-  "workspace": {
-    "dependencies": [
-      "npm:daisyui@4.4.19"
-    ]
   }
 }

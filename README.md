@@ -1,21 +1,30 @@
 # Warp
 
-**Warp** is a simple tool that allows your locally running HTTP(s) servers to have a public URL, serving as an easy-to-self-host alternative to services like `ngrok`. Warp is implemented in Deno with the goal of providing flexibility and minimal dependencies.
+**Warp** is a simple tool that allows your locally running HTTP(s) servers to
+have a public URL, serving as an easy-to-self-host alternative to services like
+`ngrok`. Warp is implemented in Deno with the goal of providing flexibility and
+minimal dependencies.
 
 The project has two main components:
 
-- **Server**: Deployable on a server, it connects to the outside world and is accessible from any domain.
-- **Client**: Runs locally to connect a given HTTP endpoint running on a local or non-public network.
+- **Server**: Deployable on a server, it connects to the outside world and is
+  accessible from any domain.
+- **Client**: Runs locally to connect a given HTTP endpoint running on a local
+  or non-public network.
 
 <img width="1390" alt="image" src="https://github.com/deco-cx/warp/assets/5839364/914ab723-02cf-4a1a-9799-72671ffa5974">
 
 ## Server
 
-The Warp server opens a single HTTP port to which the Warp client connects and upgrades to a WebSocket connection. Each request to this HTTP port is forwarded (based on the client's HOST header) to the corresponding connected Warp client connection, which then serves the request.
+The Warp server opens a single HTTP port to which the Warp client connects and
+upgrades to a WebSocket connection. Each request to this HTTP port is forwarded
+(based on the client's HOST header) to the corresponding connected Warp client
+connection, which then serves the request.
 
 ### Usage
 
-To start the Warp server, import the `serve` function from the Warp package and call it with the appropriate configuration.
+To start the Warp server, import the `serve` function from the Warp package and
+call it with the appropriate configuration.
 
 #### Example
 
@@ -35,11 +44,13 @@ serve({ port, apiKeys });
 
 ## Client
 
-The Warp client connects to the Warp server. Upon connection, the client shares the given API key and the domain it wants to receive requests for.
+The Warp client connects to the Warp server. Upon connection, the client shares
+the given API key and the domain it wants to receive requests for.
 
 ### Usage
 
-To connect a client to the Warp server, import the `connect` function from the Warp package and call it with the appropriate configuration.
+To connect a client to the Warp server, import the `connect` function from the
+Warp package and call it with the appropriate configuration.
 
 #### Example
 
@@ -69,13 +80,15 @@ closed.then(() => {
 #### Parameters
 
 - `domain`: The domain name that will be used to access your localhost service.
-- `localAddr`: The local address of the service you want to expose (e.g., `http://localhost:3000`).
+- `localAddr`: The local address of the service you want to expose (e.g.,
+  `http://localhost:3000`).
 - `server`: The WebSocket URL of your Warp server (e.g., `wss://YOUR_SERVER`).
 - `apiKey`: The apiKey for connecting to the Warp server.
 
 #### Return Values
 
-- `registered`: A promise that resolves when the client has successfully registered with the server.
+- `registered`: A promise that resolves when the client has successfully
+  registered with the server.
 - `closed`: A promise that resolves when the connection to the server is closed.
 
 ## Example Workflow
@@ -124,6 +137,9 @@ const apiKey = "API_KEY";
 
 ### Common Issues
 
-- **Invalid API Key**: Ensure that the API key you are using is listed in the `apiKeys` array on the server.
-- **Connection Refused**: Check that the server is running and accessible at the specified WebSocket URL.
-- **Domain Not Accessible**: Ensure that the domain name is correctly configured and pointing to the Warp server.
+- **Invalid API Key**: Ensure that the API key you are using is listed in the
+  `apiKeys` array on the server.
+- **Connection Refused**: Check that the server is running and accessible at the
+  specified WebSocket URL.
+- **Domain Not Accessible**: Ensure that the domain name is correctly configured
+  and pointing to the Warp server.

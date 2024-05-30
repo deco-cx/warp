@@ -1,6 +1,10 @@
 import { makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
 import { handleClientMessage } from "./handlers.server.ts";
-import type { ClientMessage, ServerConnectionState, ServerMessage } from "./messages.ts";
+import type {
+  ClientMessage,
+  ServerConnectionState,
+  ServerMessage,
+} from "./messages.ts";
 
 /**
  * Ensures that the given chunk is in the form of a Uint8Array.
@@ -8,13 +12,16 @@ import type { ClientMessage, ServerConnectionState, ServerMessage } from "./mess
  * @param {Uint8Array | Record<string, Uint8Array[number]>} chunk - The input chunk, which can be either a Uint8Array or an object.
  * @returns {Uint8Array} The chunk converted into a Uint8Array.
  */
-export const ensureChunked = (chunk: Uint8Array | Record<string, Uint8Array[number]>): Uint8Array => {
+export const ensureChunked = (
+  chunk: Uint8Array | Record<string, Uint8Array[number]>,
+): Uint8Array => {
   if (Array.isArray(chunk)) {
     return chunk as Uint8Array;
   }
-  return new Uint8Array(Array.from({ ...chunk, length: Object.keys(chunk).length }))
-}
-
+  return new Uint8Array(
+    Array.from({ ...chunk, length: Object.keys(chunk).length }),
+  );
+};
 
 const serverStates: Record<string, ServerConnectionState> = {};
 const hostToClientId: Record<string, string> = {};
@@ -35,7 +42,7 @@ export interface ServeOptions extends HandlerOptions {
  * @property {string} connectPath - A path for connecting to the server.
  */
 export interface HandlerOptions {
-  apiKeys: string[]
+  apiKeys: string[];
   connectPath?: string;
 }
 
@@ -45,12 +52,12 @@ export interface HandlerOptions {
  * @returns {Deno.HttpServer<Deno.NetAddr>} An instance of Deno HTTP server.
  */
 export const serve = (options: ServeOptions): Deno.HttpServer<Deno.NetAddr> => {
-  const port = (options?.port ?? 8000);
+  const port = options?.port ?? 8000;
   return Deno.serve({
     handler: serveHandler(options),
     port,
-  })
-}
+  });
+};
 
 /**
  * Creates a handler function for serving requests, with support for WebSocket connections
@@ -61,7 +68,9 @@ export const serve = (options: ServeOptions): Deno.HttpServer<Deno.NetAddr> => {
  * @param {string} [options.connectPath] - The path for WebSocket connection upgrades.
  * @returns {(request: Request) => Response | Promise<Response>} - The request handler function.
  */
-export const serveHandler = (options: HandlerOptions): (request: Request) => Response | Promise<Response> => {
+export const serveHandler = (
+  options: HandlerOptions,
+): (request: Request) => Response | Promise<Response> => {
   const apiKeys = options.apiKeys; // array of api keys (random strings)
   const connectPath = options?.connectPath ?? "/_connect";
 
@@ -81,11 +90,11 @@ export const serveHandler = (options: HandlerOptions): (request: Request) => Res
             link: (host) => {
               hosts.push(host);
               hostToClientId[host] = clientId;
-            }
+            },
           },
           ongoingRequests: {},
           apiKeys,
-        }
+        };
         serverStates[state.clientId] = state;
         try {
           for await (const message of ch.in.recv(req.signal)) {
@@ -99,15 +108,17 @@ export const serveHandler = (options: HandlerOptions): (request: Request) => Res
             delete hostToClientId[host];
           }
         }
-      })()
+      })();
       return response;
-
     }
     const host = req.headers.get("host");
     if (host && host in hostToClientId) {
       const serverState = serverStates[hostToClientId[host]];
       if (!serverState) {
-        return new Response("No registration for domain and/or remote service not available", { status: 503 });
+        return new Response(
+          "No registration for domain and/or remote service not available",
+          { status: 503 },
+        );
       }
       const { ch, ongoingRequests } = serverState;
       const messageId = crypto.randomUUID();
@@ -133,7 +144,7 @@ export const serveHandler = (options: HandlerOptions): (request: Request) => Res
         requestObject: req,
         responseObject,
         dataChan: makeChan(),
-      }
+      };
       try {
         const signal = ch.out.signal;
         await ch.out.send(requestForward);
@@ -155,19 +166,37 @@ export const serveHandler = (options: HandlerOptions): (request: Request) => Res
               id: messageId,
             });
           } catch (err) {
-            responseObject.resolve(new Response("Error sending request to remote client", { status: 503 }));
+            responseObject.resolve(
+              new Response("Error sending request to remote client", {
+                status: 503,
+              }),
+            );
             if (signal.aborted) {
               return;
             }
-            console.log(`unexpected error when sending request`, err, req, messageId);
+            console.log(
+              `unexpected error when sending request`,
+              err,
+              req,
+              messageId,
+            );
           }
-        })()
+        })();
         return responseObject.promise;
       } catch (err) {
-        console.error(new Date(), "Error sending request to remote client", err);
-        return new Response("Error sending request to remote client", { status: 503 });
+        console.error(
+          new Date(),
+          "Error sending request to remote client",
+          err,
+        );
+        return new Response("Error sending request to remote client", {
+          status: 503,
+        });
       }
     }
-    return new Response("No registration for domain and/or remote service not available", { status: 503 });
-  }
-}
+    return new Response(
+      "No registration for domain and/or remote service not available",
+      { status: 503 },
+    );
+  };
+};
