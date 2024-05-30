@@ -7,6 +7,8 @@ The project has two main components:
 - **Server**: Deployable on a server, it connects to the outside world and is accessible from any domain.
 - **Client**: Runs locally to connect a given HTTP endpoint running on a local or non-public network.
 
+<img width="1390" alt="image" src="https://github.com/deco-cx/warp/assets/5839364/914ab723-02cf-4a1a-9799-72671ffa5974">
+
 ## Server
 
 The Warp server opens a single HTTP port to which the Warp client connects and upgrades to a WebSocket connection. Each request to this HTTP port is forwarded (based on the client's HOST header) to the corresponding connected Warp client connection, which then serves the request.
