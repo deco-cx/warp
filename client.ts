@@ -54,7 +54,7 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
     domain: opts.domain,
   });
   const requestBody: Record<string, Channel<Uint8Array>> = {};
-  const wsMessages: Record<string, Channel<ArrayBuffer>> = {};
+  const wsSockets: Record<string, WebSocket> = {};
 
   (async () => {
     const state: ClientState = {
@@ -62,7 +62,7 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
       localAddr: opts.localAddr,
       live: false,
       requestBody,
-      wsMessages,
+      wsSockets,
       ch,
     };
     for await (const message of ch.in.recv()) {

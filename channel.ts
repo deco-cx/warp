@@ -114,6 +114,9 @@ export const makeWebSocket = <TSend, TReceive>(
       eventData = await eventData.text();
     }
     const message = parse ? JSON.parse(eventData) : eventData;
+    if (recvChan.signal.aborted) {
+      return;
+    }
     await recvChan.send(message);
   };
   socket.onopen = async () => {

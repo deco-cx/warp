@@ -103,7 +103,7 @@ const onRequestDataEnd: ServerMessageHandler<RequestDataEndMessage> = (
  * @param {WSMessage} message - The message data.
  */
 const onWsMessage: ServerMessageHandler<WSMessage> = async (state, message) => {
-  await state.wsMessages?.[message.id]?.send?.(message.data);
+  await state.wsSockets?.[message.id]?.send?.(message.data);
 };
 
 /**
@@ -115,9 +115,9 @@ const onWsClosed: ServerMessageHandler<RegisteredMessage> = (
   state,
   message,
 ) => {
-  const messageChan = state.wsMessages[message.id];
-  delete state.wsMessages[message.id];
-  messageChan?.close();
+  const socket = state.wsSockets[message.id];
+  delete state.wsSockets[message.id];
+  socket?.close();
 };
 
 /**
@@ -152,7 +152,7 @@ async function handleWebSocket(
       type: "ws-opened",
       id: message.id,
     });
-    state.wsMessages[message.id] = wsCh.out;
+    state.wsSockets[message.id] = ws;
     (async () => {
       try {
         for await (const data of wsCh.in.recv(state.ch.out.signal)) {
@@ -179,7 +179,7 @@ async function handleWebSocket(
         }).catch(ignoreIfClosed);
         throw error;
       } finally {
-        delete state.wsMessages[message.id];
+        delete state.wsSockets[message.id];
       }
     })();
   } catch (err) {

@@ -93,7 +93,7 @@ export type ServerMessage =
 export interface ClientState {
   ch: DuplexChannel<ClientMessage, ServerMessage>;
   requestBody: Record<string, Channel<Uint8Array>>;
-  wsMessages: Record<string, Channel<ArrayBuffer>>;
+  wsSockets: Record<string, WebSocket>;
   live: boolean;
   localAddr: string;
   client?: Deno.HttpClient;
