@@ -39,8 +39,8 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
     headers.set(key, value);
   });
   const shouldBeNullBody = NULL_BODIES.includes(message.statusCode);
-  const stream = !shouldBeNullBody && request.dataChan
-    ? makeReadableStream(request.dataChan)
+  const stream = !shouldBeNullBody && request.responseBodyChan
+    ? makeReadableStream(request.responseBodyChan)
     : undefined;
   const resp = new Response(stream, {
     status: message.statusCode,
@@ -75,7 +75,7 @@ const data: ClientMessageHandler<DataMessage> = async (state, message) => {
     return;
   }
   try {
-    await request.dataChan?.send(ensureChunked(message.chunk));
+    await request.responseBodyChan?.send(ensureChunked(message.chunk));
   } catch (_err) {
     console.log("Request was aborted", _err);
   }
@@ -102,9 +102,7 @@ const onDataEnd: ClientMessageHandler<DataEndMessage> = (state, message) => {
     return;
   }
   try {
-    // Call ready again to ensure that all chunks are written
-    // before closing the writer.
-    request.dataChan?.close?.();
+    request.responseBodyChan?.close?.();
   } catch (_err) {
     console.log(_err);
   }
@@ -128,7 +126,7 @@ const onWsClosed: ClientMessageHandler<WSConnectionClosed> = (
  * @param {WSMessage} message - The message data.
  */
 const onWsMessage: ClientMessageHandler<WSMessage> = async (state, message) => {
-  await state.ongoingRequests?.[message.id]?.socketChan?.send(message.data);
+  await state.ongoingRequests?.[message.id]?.webSocketChan?.send(message.data);
 };
 
 /**
@@ -151,7 +149,7 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (
       socket,
       false,
     );
-    request.socketChan = socketChan.out;
+    request.webSocketChan = socketChan.out;
     (async () => {
       const signal = state.ch.out.signal;
       try {

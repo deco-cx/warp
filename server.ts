@@ -145,7 +145,7 @@ export const serveHandler = (
         id: messageId,
         requestObject: req,
         responseObject,
-        dataChan: makeChan(),
+        responseBodyChan: makeChan(),
       };
       try {
         const signal = ch.out.signal;

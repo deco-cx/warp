@@ -4,8 +4,8 @@ export interface RequestObject {
   id: string;
   requestObject: Request;
   responseObject: ReturnType<typeof Promise.withResolvers<Response>>;
-  dataChan?: Channel<Uint8Array>;
-  socketChan?: Channel<ArrayBuffer>;
+  responseBodyChan?: Channel<Uint8Array>;
+  webSocketChan?: Channel<ArrayBuffer>;
 }
 
 export interface RegisterMessage {
