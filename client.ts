@@ -65,18 +65,23 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
       wsSockets,
       ch,
     };
-    for await (const message of ch.in.recv()) {
-      try {
-        await handleServerMessage(state, message);
-        if (state.live) {
-          registered.resolve();
-        }
-      } catch (err) {
-        console.error(new Date(), "error handling message", err);
-        break;
+    const ctrl = new AbortController();
+    try {
+      for await (const message of ch.in.recv(ctrl.signal)) {
+        Promise.resolve(handleServerMessage(state, message)).then(() => {
+          if (state.live) {
+            registered.resolve();
+          }
+        }).catch((err) => {
+          console.error(new Date(), "error handling message", err);
+          !ctrl.signal.aborted && ctrl.abort();
+        });
       }
+    } catch (_err) {
+      // ignore
+    } finally {
+      closed.resolve();
     }
-    closed.resolve();
   })();
   return { closed: closed.promise, registered: registered.promise };
 };

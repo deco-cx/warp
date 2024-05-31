@@ -1,4 +1,4 @@
-import { makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
+import { link, makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
 import { handleClientMessage } from "./handlers.server.ts";
 import type {
   ClientMessage,
@@ -96,9 +96,15 @@ export const serveHandler = (
           apiKeys,
         };
         serverStates[state.clientId] = state;
+        const ctrl = new AbortController();
+        const linked = link(req.signal, ctrl.signal);
         try {
-          for await (const message of ch.in.recv(req.signal)) {
-            await handleClientMessage(state, message);
+          for await (const message of ch.in.recv(linked)) {
+            Promise.resolve(handleClientMessage(state, message)).catch(
+              (_err) => {
+                !ctrl.signal.aborted && ctrl.abort();
+              },
+            );
           }
         } catch (_err) {
           // ignore
