@@ -67,11 +67,6 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
 const data: ClientMessageHandler<DataMessage> = async (state, message) => {
   const request = state.ongoingRequests[message.id];
   if (!request) {
-    console.error(
-      new Date(),
-      "Didn't find response object, unable to send data",
-      message.id,
-    );
     return;
   }
   try {
@@ -89,10 +84,6 @@ const data: ClientMessageHandler<DataMessage> = async (state, message) => {
 const onDataEnd: ClientMessageHandler<DataEndMessage> = (state, message) => {
   const request = state.ongoingRequests[message.id];
   if (!request) {
-    console.error(
-      new Date(),
-      "Didn't find response object, unable to send data",
-    );
     return;
   }
   if (message.error) {
@@ -240,7 +231,6 @@ export const handleClientMessage: ClientMessageHandler = async (
   state,
   message,
 ) => {
-  console.info(new Date(), message.type, "id" in message ? message.id : "");
   await handlersByType?.[message.type]?.(state, message)?.catch?.((err) => {
     console.error(
       "unexpected error happening when handling message",

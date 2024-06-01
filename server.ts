@@ -154,19 +154,19 @@ export const serveHandler = (
         responseBodyChan: makeChan(),
       };
       try {
-        const signal = ch.out.signal;
         await ch.out.send(requestForward);
         const dataChan = req.body ? makeChanStream(req.body) : undefined;
+        const linked = link(ch.out.signal, req.signal);
         (async () => {
           try {
-            for await (const chunk of dataChan?.recv(signal) ?? []) {
+            for await (const chunk of dataChan?.recv(linked) ?? []) {
               await ch.out.send({
                 type: "request-data",
                 id: messageId,
                 chunk,
               });
             }
-            if (signal.aborted) {
+            if (linked.aborted) {
               return;
             }
             await ch.out.send({
@@ -179,7 +179,7 @@ export const serveHandler = (
                 status: 503,
               }),
             );
-            if (signal.aborted) {
+            if (linked.aborted) {
               return;
             }
             console.log(

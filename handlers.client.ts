@@ -36,6 +36,7 @@ const error: ServerMessageHandler<ErrorMessage> = (state) => {
   state.live = false;
 };
 
+
 /**
  * Handler for the 'request-start' server message.
  * @param {ClientState} state - The client state.
