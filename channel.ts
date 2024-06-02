@@ -103,7 +103,10 @@ export type Message<TMessageProperties = any> = TMessageProperties & {
 };
 
 // Function to combine metadata and binary data
-function createMessage(metadata: unknown, uint8Array?: Uint8Array) {
+function createMessage(
+  metadata: unknown,
+  uint8Array?: Uint8Array,
+): ArrayBuffer {
   const metadataString = JSON.stringify(metadata);
   const metadataUint8Array = new TextEncoder().encode(metadataString);
 
@@ -126,7 +129,10 @@ function createMessage(metadata: unknown, uint8Array?: Uint8Array) {
   return buffer;
 }
 
-function parseMessage(buffer: ArrayBuffer) {
+function parseMessage(
+  buffer: ArrayBuffer,
+  // deno-lint-ignore no-explicit-any
+): { metadata: any; binaryData: Uint8Array } {
   const view = new DataView(buffer);
 
   // Read the metadata length (4 bytes)

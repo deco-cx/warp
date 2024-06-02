@@ -1,12 +1,12 @@
 import { connect } from "../client.ts";
 import { KEY } from "./consts.ts";
 
-const worker = new Worker(import.meta.resolve("./server_test.ts"), {
+const _worker = new Worker(import.meta.resolve("./server_test.ts"), {
   type: "module",
   deno: { permissions: "inherit" },
 });
 
-const worker2 = new Worker(import.meta.resolve("./tunnel_server_test.ts"), {
+const _worker2 = new Worker(import.meta.resolve("./tunnel_server_test.ts"), {
   type: "module",
   deno: { permissions: "inherit" },
 });
