@@ -1,3 +1,5 @@
+[![JSR](https://jsr.io/badges/@deco/warp)](https://jsr.io/@deco/warp)
+
 # Warp
 
 **Warp** is a simple tool that allows your locally running HTTP(s) servers to
