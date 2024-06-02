@@ -1,4 +1,5 @@
 import { Queue } from "./queue.ts";
+import { jsonSerializer } from "./serializers.ts";
 
 export interface Channel<T> {
   closed: Promise<void>;
@@ -99,71 +100,41 @@ export interface DuplexChannel<TSend, TReceive> {
 
 // deno-lint-ignore no-explicit-any
 export type Message<TMessageProperties = any> = TMessageProperties & {
-  payload?: Uint8Array;
+  chunk?: Uint8Array;
 };
 
-// Function to combine metadata and binary data
-function createMessage(
-  metadata: unknown,
-  uint8Array?: Uint8Array,
-): ArrayBuffer {
-  const metadataString = JSON.stringify(metadata);
-  const metadataUint8Array = new TextEncoder().encode(metadataString);
-
-  // Create a buffer to hold the metadata length, metadata, and binary data
-  const buffer = new ArrayBuffer(
-    4 + metadataUint8Array.length + (uint8Array?.length ?? 0),
-  );
-  const view = new DataView(buffer);
-
-  // Write the metadata length (4 bytes)
-  view.setUint32(0, metadataUint8Array.length, true);
-
-  // Write the metadata
-  new Uint8Array(buffer, 4, metadataUint8Array.length).set(metadataUint8Array);
-
-  // Write the binary data
-  uint8Array &&
-    new Uint8Array(buffer, 4 + metadataUint8Array.length).set(uint8Array);
-
-  return buffer;
-}
-
-function parseMessage(
-  buffer: ArrayBuffer,
-  // deno-lint-ignore no-explicit-any
-): { metadata: any; binaryData: Uint8Array } {
-  const view = new DataView(buffer);
-
-  // Read the metadata length (4 bytes)
-  const metadataLength = view.getUint32(0, true);
-
-  // Read the metadata
-  const metadataUint8Array = new Uint8Array(buffer, 4, metadataLength);
-  const metadataString = new TextDecoder().decode(metadataUint8Array);
-  const metadata = JSON.parse(metadataString);
-
-  // Read the binary data
-  const binaryData = new Uint8Array(buffer, 4 + metadataLength);
-
-  return { metadata, binaryData };
+export interface MessageSerializer<
+  TSend,
+  TReceive,
+  TRawFormat extends string | ArrayBufferLike | ArrayBufferView | Blob,
+> {
+  binaryType?: BinaryType;
+  serialize: (
+    msg: Message<TSend>,
+  ) => TRawFormat;
+  deserialize: (str: TRawFormat) => Message<TReceive>;
 }
 
 export const makeWebSocket = <
   TSend,
   TReceive,
-  TMessageSend = Message<TSend>,
-  TMessageRecieve = Message<TReceive>,
+  TMessageFormat extends string | ArrayBufferLike | ArrayBufferView | Blob =
+    | string
+    | ArrayBufferLike
+    | ArrayBufferView
+    | Blob,
 >(
   socket: WebSocket,
-  parse: boolean = true,
-): Promise<DuplexChannel<TMessageSend, TMessageRecieve>> => {
-  const sendChan = makeChan<TMessageSend>();
-  const recvChan = makeChan<TMessageRecieve>();
+  _serializer?: MessageSerializer<TSend, TReceive, TMessageFormat>,
+): Promise<DuplexChannel<Message<TSend>, Message<TReceive>>> => {
+  const serializer = _serializer ??
+    jsonSerializer<Message<TSend>, Message<TReceive>>();
+  const sendChan = makeChan<Message<TSend>>();
+  const recvChan = makeChan<Message<TReceive>>();
   const ch = Promise.withResolvers<
-    DuplexChannel<TMessageSend, TMessageRecieve>
+    DuplexChannel<Message<TSend>, Message<TReceive>>
   >();
-  socket.binaryType = "arraybuffer";
+  socket.binaryType = serializer.binaryType ?? "blob";
   socket.onclose = () => {
     sendChan.close();
     recvChan.close();
@@ -176,25 +147,14 @@ export const makeWebSocket = <
     if (recvChan.signal.aborted) {
       return;
     }
-    if (!parse) {
-      await recvChan.send(msg.data);
-      return;
-    }
-    const { binaryData, metadata } = parseMessage(msg.data);
-    await recvChan.send({ ...metadata, payload: binaryData });
+    await recvChan.send(serializer.deserialize(msg.data));
   };
   socket.onopen = async () => {
     ch.resolve({ in: recvChan, out: sendChan });
     for await (const message of sendChan.recv()) {
       try {
-        if (!parse) {
-          socket.send(message as unknown as ArrayBuffer);
-          continue;
-        }
-        const { payload, ...rest } = message as { payload?: Uint8Array };
-        const msg = createMessage(rest, payload);
         socket.send(
-          msg,
+          serializer.serialize(message),
         );
       } catch (_err) {
         console.error("error sending message through socket", message);
