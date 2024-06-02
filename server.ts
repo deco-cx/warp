@@ -80,6 +80,7 @@ export const serveHandler = (
     const url = new URL(req.url);
     if (url.pathname === connectPath) {
       const { socket, response } = Deno.upgradeWebSocket(req);
+      socket.binaryType = "blob";
       (async () => {
         const ch = await makeWebSocket<ServerMessage, ClientMessage>(socket);
         const clientId = crypto.randomUUID();
@@ -159,7 +160,7 @@ export const serveHandler = (
               await ch.out.send({
                 type: "request-data",
                 id: messageId,
-                chunk,
+                payload: chunk,
               });
             }
             if (linked.aborted) {

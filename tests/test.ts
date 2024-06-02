@@ -16,7 +16,6 @@ const { registered } = await connect({
   localAddr: "http://localhost:8000",
   server: "ws://localhost:8001",
   apiKey: KEY,
-  sw: true,
 });
 
 await registered;

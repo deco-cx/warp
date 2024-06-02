@@ -18,8 +18,15 @@ import type {
   ServerMessageHandler,
   WSMessage,
 } from "./messages.ts";
-import { ensureChunked } from "./server.ts";
 
+export function uint8ArrayToBase64(uint8Array: Uint8Array) {
+  let binary = "";
+  const len = uint8Array.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return btoa(binary);
+}
 /**
  * Handler for the 'registered' server message.
  * @param {ClientState} state - The client state.
@@ -78,7 +85,7 @@ const onRequestData: ServerMessageHandler<RequestDataMessage> = async (
     console.info("[req-data] req not found", message.id);
     return;
   }
-  await reqBody.send?.(ensureChunked(message.chunk));
+  await reqBody.send?.(message.payload);
 };
 
 /**
@@ -146,6 +153,7 @@ async function handleWebSocket(
   state: ClientState,
 ) {
   const ws = new WebSocket(new URL(message.url, state.localAddr));
+  ws.binaryType = "blob";
   try {
     const wsCh = await makeWebSocket<ArrayBuffer, ArrayBuffer>(ws, false);
     await state.ch.out.send({
@@ -205,8 +213,6 @@ async function doFetch(
   // Read from the stream
   const signal = clientCh.signal;
   try {
-    const fetchStart = performance.now();
-    console.log("start fetch");
     const response = await fetch(new URL(request.url, state.localAddr), {
       ...state.client ? { client: state.client } : {},
       method: request.method,
@@ -214,12 +220,6 @@ async function doFetch(
       body: request.body,
       signal,
     });
-    console.log(
-      "fetch time",
-      new URL(request.url, state.localAddr).href,
-      performance.now() - fetchStart,
-    );
-    const dataStart = performance.now();
     await clientCh.send({
       type: "response-start",
       id: request.id,
@@ -233,7 +233,7 @@ async function doFetch(
       await clientCh.send({
         type: "data",
         id: request.id,
-        chunk,
+        payload: chunk,
       });
     }
     if (signal.aborted) {
@@ -243,7 +243,6 @@ async function doFetch(
       type: "data-end",
       id: request.id,
     });
-    console.log("RESPONSE TRANSFER", performance.now() - dataStart);
   } catch (err) {
     if (signal.aborted) {
       return;
@@ -261,6 +260,5 @@ export const handleServerMessage: ServerMessageHandler = async (
   state,
   message,
 ) => {
-  console.info(new Date(), "[client]", message.type);
   await handlersByType?.[message.type]?.(state, message);
 };

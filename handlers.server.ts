@@ -9,7 +9,6 @@ import type {
   WSConnectionClosed,
   WSMessage,
 } from "./messages.ts";
-import { ensureChunked } from "./server.ts";
 
 /**
  * List of status codes that represent null bodies in responses.
@@ -59,6 +58,16 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
   request.responseObject.resolve(resp);
 };
 
+// Function to convert binary string to Uint8Array
+export function base64ToUint8Array(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 /**
  * Handler for the 'data' client message.
  * @param {ClientState} state - The client state.
@@ -70,7 +79,9 @@ const data: ClientMessageHandler<DataMessage> = async (state, message) => {
     return;
   }
   try {
-    await request.responseBodyChan?.send(ensureChunked(message.chunk));
+    await request.responseBodyChan?.send(
+      message.payload,
+    );
   } catch (_err) {
     console.log("Request was aborted", _err);
   }
@@ -135,6 +146,7 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (
   }
   try {
     const { socket, response } = Deno.upgradeWebSocket(request.requestObject);
+    socket.binaryType = "blob";
     request.responseObject.resolve(response);
     const socketChan = await makeWebSocket<ArrayBuffer, ArrayBuffer>(
       socket,
@@ -231,7 +243,6 @@ export const handleClientMessage: ClientMessageHandler = async (
   state,
   message,
 ) => {
-  console.info(new Date(), "[server]", message.type);
   await handlersByType?.[message.type]?.(state, message)?.catch?.((err) => {
     console.error(
       "unexpected error happening when handling message",
