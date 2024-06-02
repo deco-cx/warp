@@ -34,7 +34,7 @@ export const ifClosedChannel =
   };
 
 export const ignoreIfClosed = ifClosedChannel(() => {});
-export const makeChan = <T>(capacity = 5): Channel<T> => {
+export const makeChan = <T>(capacity = 0): Channel<T> => {
   let currentCapacity = capacity;
   const queue: Queue<{ value: T; resolve: () => void }> = new Queue();
   const ctrl = new AbortController();
