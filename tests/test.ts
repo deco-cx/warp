@@ -32,7 +32,7 @@ const resp = await fetch("http://localhost:8001", {
     "host": domain,
   },
   client,
-  body: (await Deno.open("../big.response.html")).readable,
+  body: (await Deno.open("./big.response.html")).readable,
 });
 const text = await resp.text();
 console.log("TEXT", resp.headers);
@@ -46,7 +46,7 @@ const resp2 = await fetch("http://localhost:8000", {
     "host": domain,
   },
   client,
-  body: (await Deno.open("../big.response.html")).readable,
+  body: (await Deno.open("./big.response.html")).readable,
 });
 const text2 = await resp2.text();
 console.log("TEXT2", resp.headers);
