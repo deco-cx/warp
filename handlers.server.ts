@@ -146,7 +146,6 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (
   }
   try {
     const { socket, response } = Deno.upgradeWebSocket(request.requestObject);
-    socket.binaryType = "blob";
     request.responseObject.resolve(response);
     const socketChan = await makeWebSocket<ArrayBuffer, ArrayBuffer>(
       socket,

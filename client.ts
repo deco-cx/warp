@@ -50,7 +50,6 @@ export const connectMainThread = async (
     : undefined;
 
   const socket = new WebSocket(`${opts.server}/_connect`);
-  socket.binaryType = "blob";
   const ch = await makeWebSocket<ClientMessage, ServerMessage>(socket);
   await ch.out.send({
     id: crypto.randomUUID(),

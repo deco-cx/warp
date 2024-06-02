@@ -153,7 +153,6 @@ async function handleWebSocket(
   state: ClientState,
 ) {
   const ws = new WebSocket(new URL(message.url, state.localAddr));
-  ws.binaryType = "blob";
   try {
     const wsCh = await makeWebSocket<ArrayBuffer, ArrayBuffer>(ws, false);
     await state.ch.out.send({

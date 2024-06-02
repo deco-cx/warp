@@ -80,7 +80,6 @@ export const serveHandler = (
     const url = new URL(req.url);
     if (url.pathname === connectPath) {
       const { socket, response } = Deno.upgradeWebSocket(req);
-      socket.binaryType = "blob";
       (async () => {
         const ch = await makeWebSocket<ServerMessage, ClientMessage>(socket);
         const clientId = crypto.randomUUID();
