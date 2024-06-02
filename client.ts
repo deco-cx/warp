@@ -1,7 +1,10 @@
 import { type Channel, makeWebSocket } from "./channel.ts";
+import denoJSON from "./deno.json" with { type: "json" };
 import { handleServerMessage } from "./handlers.client.ts";
 import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
+import { dataViewerSerializer } from "./serializers.ts";
 
+export const CLIENT_VERSION_QUERY_STRING = "v";
 /**
  * Options for establishing a connection.
  * @typedef {Object} ConnectOptions
@@ -49,8 +52,13 @@ export const connectMainThread = async (
     })
     : undefined;
 
-  const socket = new WebSocket(`${opts.server}/_connect`);
-  const ch = await makeWebSocket<ClientMessage, ServerMessage>(socket);
+  const socket = new WebSocket(
+    `${opts.server}/_connect?${CLIENT_VERSION_QUERY_STRING}=${denoJSON.version}`,
+  );
+  const ch = await makeWebSocket<ClientMessage, ServerMessage, ArrayBuffer>(
+    socket,
+    dataViewerSerializer(),
+  );
   await ch.out.send({
     id: crypto.randomUUID(),
     type: "register",

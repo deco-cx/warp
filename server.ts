@@ -1,10 +1,12 @@
 import { link, makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
+import { CLIENT_VERSION_QUERY_STRING } from "./client.ts";
 import { handleClientMessage } from "./handlers.server.ts";
 import type {
   ClientMessage,
   ServerConnectionState,
   ServerMessage,
 } from "./messages.ts";
+import { dataViewerSerializer, jsonSerializer } from "./serializers.ts";
 
 /**
  * Ensures that the given chunk is in the form of a Uint8Array.
@@ -81,7 +83,16 @@ export const serveHandler = (
     if (url.pathname === connectPath) {
       const { socket, response } = Deno.upgradeWebSocket(req);
       (async () => {
-        const ch = await makeWebSocket<ServerMessage, ClientMessage>(socket);
+        const clientVersion = url.searchParams.get(CLIENT_VERSION_QUERY_STRING);
+        const ch = clientVersion === null
+          ? await makeWebSocket<ServerMessage, ClientMessage, string>(
+            socket,
+            jsonSerializer(),
+          )
+          : await makeWebSocket<ServerMessage, ClientMessage, ArrayBuffer>(
+            socket,
+            dataViewerSerializer(),
+          );
         const clientId = crypto.randomUUID();
         const hosts: string[] = [];
         const state: ServerConnectionState = {
@@ -159,7 +170,7 @@ export const serveHandler = (
               await ch.out.send({
                 type: "request-data",
                 id: messageId,
-                payload: chunk,
+                chunk,
               });
             }
             if (linked.aborted) {

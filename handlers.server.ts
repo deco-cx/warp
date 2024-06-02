@@ -9,6 +9,7 @@ import type {
   WSConnectionClosed,
   WSMessage,
 } from "./messages.ts";
+import { arrayBufferSerializer } from "./serializers.ts";
 
 /**
  * List of status codes that represent null bodies in responses.
@@ -70,7 +71,7 @@ const data: ClientMessageHandler<DataMessage> = async (state, message) => {
   }
   try {
     await request.responseBodyChan?.send(
-      message.payload,
+      message.chunk,
     );
   } catch (_err) {
     console.log("Request was aborted", _err);
@@ -137,9 +138,13 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (
   try {
     const { socket, response } = Deno.upgradeWebSocket(request.requestObject);
     request.responseObject.resolve(response);
-    const socketChan = await makeWebSocket<ArrayBuffer, ArrayBuffer>(
+    const socketChan = await makeWebSocket<
+      ArrayBuffer,
+      ArrayBuffer,
+      ArrayBuffer
+    >(
       socket,
-      false,
+      arrayBufferSerializer(),
     );
     request.webSocketChan = socketChan.out;
     (async () => {

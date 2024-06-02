@@ -18,6 +18,7 @@ import type {
   ServerMessageHandler,
   WSMessage,
 } from "./messages.ts";
+import { arrayBufferSerializer } from "./serializers.ts";
 
 /**
  * Handler for the 'registered' server message.
@@ -77,7 +78,7 @@ const onRequestData: ServerMessageHandler<RequestDataMessage> = async (
     console.info("[req-data] req not found", message.id);
     return;
   }
-  await reqBody.send?.(message.payload);
+  await reqBody.send?.(message.chunk);
 };
 
 /**
@@ -146,7 +147,10 @@ async function handleWebSocket(
 ) {
   const ws = new WebSocket(new URL(message.url, state.localAddr));
   try {
-    const wsCh = await makeWebSocket<ArrayBuffer, ArrayBuffer>(ws, false);
+    const wsCh = await makeWebSocket<ArrayBuffer, ArrayBuffer, ArrayBuffer>(
+      ws,
+      arrayBufferSerializer(),
+    );
     await state.ch.out.send({
       type: "ws-opened",
       id: message.id,
@@ -224,7 +228,7 @@ async function doFetch(
       await clientCh.send({
         type: "data",
         id: request.id,
-        payload: chunk,
+        chunk,
       });
     }
     if (signal.aborted) {

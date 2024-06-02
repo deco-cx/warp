@@ -24,7 +24,7 @@ export interface ResponseStartMessage {
 export interface DataMessage {
   type: "data";
   id: string;
-  payload: Uint8Array;
+  chunk: Uint8Array;
 }
 
 export interface DataEndMessage {
@@ -70,7 +70,7 @@ export interface RequestDataEndMessage {
 export interface RequestDataMessage {
   type: "request-data";
   id: string;
-  payload: Uint8Array;
+  chunk: Uint8Array;
 }
 export interface RegisteredMessage {
   type: "registered";

@@ -1,0 +1,14 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "jsr:@deco/warp@0.2.4": "jsr:@deco/warp@0.2.4"
+    },
+    "jsr": {
+      "@deco/warp@0.2.4": {
+        "integrity": "a4da88f96f98fc77b0c4a1565530d5d66ebe6eb013e2dcfc05121327a7c67dee"
+      }
+    }
+  },
+  "remote": {}
+}
