@@ -34,7 +34,8 @@ export const ifClosedChannel =
   };
 
 export const ignoreIfClosed = ifClosedChannel(() => {});
-export const makeChan = <T>(): Channel<T> => {
+export const makeChan = <T>(capacity = 5): Channel<T> => {
+  let currentCapacity = capacity;
   const queue: Queue<{ value: T; resolve: () => void }> = new Queue();
   const ctrl = new AbortController();
   const abortPromise = Promise.withResolvers<void>();
@@ -45,7 +46,15 @@ export const makeChan = <T>(): Channel<T> => {
   const send = (value: T): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (ctrl.signal.aborted) reject(new ClosedChannelError());
-      queue.push({ value, resolve });
+      let mResolve = resolve;
+      if (currentCapacity > 0) {
+        currentCapacity--;
+        mResolve = () => {
+          currentCapacity++;
+        };
+        resolve();
+      }
+      queue.push({ value, resolve: mResolve });
     });
   };
 
@@ -149,7 +158,7 @@ export const makeReadableStream = (
   });
 };
 export const makeChanStream = (stream: ReadableStream): Channel<Uint8Array> => {
-  const chan = makeChan<Uint8Array>();
+  const chan = makeChan<Uint8Array>(0); // capacity
 
   // Consume the transformed stream to trigger the pipeline
   const reader = stream.getReader();

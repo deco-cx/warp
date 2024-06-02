@@ -36,7 +36,6 @@ const error: ServerMessageHandler<ErrorMessage> = (state) => {
   state.live = false;
 };
 
-
 /**
  * Handler for the 'request-start' server message.
  * @param {ClientState} state - The client state.
@@ -206,6 +205,8 @@ async function doFetch(
   // Read from the stream
   const signal = clientCh.signal;
   try {
+    const fetchStart = performance.now();
+    console.log("start fetch");
     const response = await fetch(new URL(request.url, state.localAddr), {
       ...state.client ? { client: state.client } : {},
       method: request.method,
@@ -213,6 +214,12 @@ async function doFetch(
       body: request.body,
       signal,
     });
+    console.log(
+      "fetch time",
+      new URL(request.url, state.localAddr).href,
+      performance.now() - fetchStart,
+    );
+    const dataStart = performance.now();
     await clientCh.send({
       type: "response-start",
       id: request.id,
@@ -236,6 +243,7 @@ async function doFetch(
       type: "data-end",
       id: request.id,
     });
+    console.log("RESPONSE TRANSFER", performance.now() - dataStart);
   } catch (err) {
     if (signal.aborted) {
       return;
@@ -253,5 +261,6 @@ export const handleServerMessage: ServerMessageHandler = async (
   state,
   message,
 ) => {
+  console.info(new Date(), "[client]", message.type);
   await handlersByType?.[message.type]?.(state, message);
 };

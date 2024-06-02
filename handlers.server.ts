@@ -231,6 +231,7 @@ export const handleClientMessage: ClientMessageHandler = async (
   state,
   message,
 ) => {
+  console.info(new Date(), "[server]", message.type);
   await handlersByType?.[message.type]?.(state, message)?.catch?.((err) => {
     console.error(
       "unexpected error happening when handling message",

@@ -13,14 +13,16 @@ import type {
  * @returns {Uint8Array} The chunk converted into a Uint8Array.
  */
 export const ensureChunked = (
-  chunk: Uint8Array | Record<string, Uint8Array[number]>,
+  chunk: Uint8Array | Record<string, Uint8Array[number]> & { length: number },
 ): Uint8Array => {
   if (Array.isArray(chunk)) {
     return chunk as Uint8Array;
   }
-  return new Uint8Array(
-    Array.from({ ...chunk, length: Object.keys(chunk).length }),
+  (chunk as { length: number }).length = Object.keys(chunk).length;
+  const arr = Uint8Array.from(
+    chunk,
   );
+  return arr;
 };
 
 const serverStates: Record<string, ServerConnectionState> = {};
@@ -96,15 +98,9 @@ export const serveHandler = (
           apiKeys,
         };
         serverStates[state.clientId] = state;
-        const ctrl = new AbortController();
-        const linked = link(req.signal, ctrl.signal);
         try {
-          for await (const message of ch.in.recv(linked)) {
-            Promise.resolve(handleClientMessage(state, message)).catch(
-              (_err) => {
-                !ctrl.signal.aborted && ctrl.abort();
-              },
-            );
+          for await (const message of ch.in.recv(req.signal)) {
+            await handleClientMessage(state, message);
           }
         } catch (_err) {
           // ignore
