@@ -9,7 +9,6 @@ import type {
   WSConnectionClosed,
   WSMessage,
 } from "./messages.ts";
-import { ensureChunked } from "./server.ts";
 
 /**
  * List of status codes that represent null bodies in responses.
@@ -70,7 +69,9 @@ const data: ClientMessageHandler<DataMessage> = async (state, message) => {
     return;
   }
   try {
-    await request.responseBodyChan?.send(ensureChunked(message.chunk));
+    await request.responseBodyChan?.send(
+      message.payload,
+    );
   } catch (_err) {
     console.log("Request was aborted", _err);
   }

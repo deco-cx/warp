@@ -24,7 +24,7 @@ export interface ResponseStartMessage {
 export interface DataMessage {
   type: "data";
   id: string;
-  chunk: Uint8Array;
+  payload: Uint8Array;
 }
 
 export interface DataEndMessage {
@@ -70,7 +70,7 @@ export interface RequestDataEndMessage {
 export interface RequestDataMessage {
   type: "request-data";
   id: string;
-  chunk: Uint8Array;
+  payload: Uint8Array;
 }
 export interface RegisteredMessage {
   type: "registered";
@@ -92,7 +92,7 @@ export type ServerMessage =
 
 export interface ClientState {
   ch: DuplexChannel<ClientMessage, ServerMessage>;
-  requestBody: Record<string, Channel<Uint8Array>>;
+  requestBody: Record<string, Channel<ArrayBuffer>>;
   wsSockets: Record<string, WebSocket>;
   live: boolean;
   localAddr: string;

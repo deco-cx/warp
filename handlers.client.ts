@@ -18,7 +18,6 @@ import type {
   ServerMessageHandler,
   WSMessage,
 } from "./messages.ts";
-import { ensureChunked } from "./server.ts";
 
 /**
  * Handler for the 'registered' server message.
@@ -35,7 +34,6 @@ const registered: ServerMessageHandler<RegisteredMessage> = (state) => {
 const error: ServerMessageHandler<ErrorMessage> = (state) => {
   state.live = false;
 };
-
 
 /**
  * Handler for the 'request-start' server message.
@@ -79,7 +77,7 @@ const onRequestData: ServerMessageHandler<RequestDataMessage> = async (
     console.info("[req-data] req not found", message.id);
     return;
   }
-  await reqBody.send?.(ensureChunked(message.chunk));
+  await reqBody.send?.(message.payload);
 };
 
 /**
@@ -226,7 +224,7 @@ async function doFetch(
       await clientCh.send({
         type: "data",
         id: request.id,
-        chunk,
+        payload: chunk,
       });
     }
     if (signal.aborted) {

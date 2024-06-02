@@ -34,7 +34,8 @@ export const ifClosedChannel =
   };
 
 export const ignoreIfClosed = ifClosedChannel(() => {});
-export const makeChan = <T>(): Channel<T> => {
+export const makeChan = <T>(capacity = 0): Channel<T> => {
+  let currentCapacity = capacity;
   const queue: Queue<{ value: T; resolve: () => void }> = new Queue();
   const ctrl = new AbortController();
   const abortPromise = Promise.withResolvers<void>();
@@ -45,7 +46,15 @@ export const makeChan = <T>(): Channel<T> => {
   const send = (value: T): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (ctrl.signal.aborted) reject(new ClosedChannelError());
-      queue.push({ value, resolve });
+      let mResolve = resolve;
+      if (currentCapacity > 0) {
+        currentCapacity--;
+        mResolve = () => {
+          currentCapacity++;
+        };
+        resolve();
+      }
+      queue.push({ value, resolve: mResolve });
     });
   };
 
@@ -88,13 +97,73 @@ export interface DuplexChannel<TSend, TReceive> {
   out: Channel<TSend>;
 }
 
-export const makeWebSocket = <TSend, TReceive>(
+// deno-lint-ignore no-explicit-any
+export type Message<TMessageProperties = any> = TMessageProperties & {
+  payload?: Uint8Array;
+};
+
+// Function to combine metadata and binary data
+function createMessage(
+  metadata: unknown,
+  uint8Array?: Uint8Array,
+): ArrayBuffer {
+  const metadataString = JSON.stringify(metadata);
+  const metadataUint8Array = new TextEncoder().encode(metadataString);
+
+  // Create a buffer to hold the metadata length, metadata, and binary data
+  const buffer = new ArrayBuffer(
+    4 + metadataUint8Array.length + (uint8Array?.length ?? 0),
+  );
+  const view = new DataView(buffer);
+
+  // Write the metadata length (4 bytes)
+  view.setUint32(0, metadataUint8Array.length, true);
+
+  // Write the metadata
+  new Uint8Array(buffer, 4, metadataUint8Array.length).set(metadataUint8Array);
+
+  // Write the binary data
+  uint8Array &&
+    new Uint8Array(buffer, 4 + metadataUint8Array.length).set(uint8Array);
+
+  return buffer;
+}
+
+function parseMessage(
+  buffer: ArrayBuffer,
+  // deno-lint-ignore no-explicit-any
+): { metadata: any; binaryData: Uint8Array } {
+  const view = new DataView(buffer);
+
+  // Read the metadata length (4 bytes)
+  const metadataLength = view.getUint32(0, true);
+
+  // Read the metadata
+  const metadataUint8Array = new Uint8Array(buffer, 4, metadataLength);
+  const metadataString = new TextDecoder().decode(metadataUint8Array);
+  const metadata = JSON.parse(metadataString);
+
+  // Read the binary data
+  const binaryData = new Uint8Array(buffer, 4 + metadataLength);
+
+  return { metadata, binaryData };
+}
+
+export const makeWebSocket = <
+  TSend,
+  TReceive,
+  TMessageSend = Message<TSend>,
+  TMessageRecieve = Message<TReceive>,
+>(
   socket: WebSocket,
   parse: boolean = true,
-): Promise<DuplexChannel<TSend, TReceive>> => {
-  const sendChan = makeChan<TSend>();
-  const recvChan = makeChan<TReceive>();
-  const ch = Promise.withResolvers<DuplexChannel<TSend, TReceive>>();
+): Promise<DuplexChannel<TMessageSend, TMessageRecieve>> => {
+  const sendChan = makeChan<TMessageSend>();
+  const recvChan = makeChan<TMessageRecieve>();
+  const ch = Promise.withResolvers<
+    DuplexChannel<TMessageSend, TMessageRecieve>
+  >();
+  socket.binaryType = "arraybuffer";
   socket.onclose = () => {
     sendChan.close();
     recvChan.close();
@@ -104,26 +173,29 @@ export const makeWebSocket = <TSend, TReceive>(
     ch.reject(err);
   };
   socket.onmessage = async (msg) => {
-    let eventData = msg.data;
-    const target = msg?.target;
-    if (
-      target && "binaryType" in target &&
-      target.binaryType === "blob" && typeof eventData === "object" &&
-      "text" in eventData
-    ) {
-      eventData = await eventData.text();
-    }
-    const message = parse ? JSON.parse(eventData) : eventData;
     if (recvChan.signal.aborted) {
       return;
     }
-    await recvChan.send(message);
+    if (!parse) {
+      await recvChan.send(msg.data);
+      return;
+    }
+    const { binaryData, metadata } = parseMessage(msg.data);
+    await recvChan.send({ ...metadata, payload: binaryData });
   };
   socket.onopen = async () => {
     ch.resolve({ in: recvChan, out: sendChan });
     for await (const message of sendChan.recv()) {
       try {
-        socket.send(parse ? JSON.stringify(message) : message as ArrayBuffer);
+        if (!parse) {
+          socket.send(message as unknown as ArrayBuffer);
+          continue;
+        }
+        const { payload, ...rest } = message as { payload?: Uint8Array };
+        const msg = createMessage(rest, payload);
+        socket.send(
+          msg,
+        );
       } catch (_err) {
         console.error("error sending message through socket", message);
       }
@@ -148,8 +220,10 @@ export const makeReadableStream = (
     },
   });
 };
-export const makeChanStream = (stream: ReadableStream): Channel<Uint8Array> => {
-  const chan = makeChan<Uint8Array>();
+export const makeChanStream = (
+  stream: ReadableStream,
+): Channel<Uint8Array> => {
+  const chan = makeChan<Uint8Array>(0); // capacity
 
   // Consume the transformed stream to trigger the pipeline
   const reader = stream.getReader();

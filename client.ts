@@ -9,12 +9,14 @@ import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
  * @property {string} domain - The domain to register the connection with.
  * @property {string} server - The WebSocket server URL.
  * @property {string} localAddr - The local address for the WebSocket connection.
+ * @property {boolean} sw - If it should use a service worker.
  */
 export interface ConnectOptions {
   apiKey: string;
   domain: string;
   server: string;
   localAddr: string;
+  sw?: boolean;
 }
 
 /**
@@ -33,7 +35,9 @@ export interface Connected {
  * @param {ConnectOptions} opts - Options for establishing the connection.
  * @returns {Promise<Connected>} A promise that resolves with the connection status.
  */
-export const connect = async (opts: ConnectOptions): Promise<Connected> => {
+export const connectMainThread = async (
+  opts: ConnectOptions,
+): Promise<Connected> => {
   const closed = Promise.withResolvers<void>();
   const registered = Promise.withResolvers<void>();
   const client = typeof Deno.createHttpClient === "function"
@@ -65,23 +69,64 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
       wsSockets,
       ch,
     };
-    const ctrl = new AbortController();
     try {
-      for await (const message of ch.in.recv(ctrl.signal)) {
-        Promise.resolve(handleServerMessage(state, message)).then(() => {
-          if (state.live) {
-            registered.resolve();
-          }
-        }).catch((err) => {
-          console.error(new Date(), "error handling message", err);
-          !ctrl.signal.aborted && ctrl.abort();
-        });
+      for await (const message of ch.in.recv()) {
+        await handleServerMessage(state, message);
+        if (state.live) {
+          registered.resolve();
+        }
       }
-    } catch (_err) {
-      // ignore
+    } catch (err) {
+      console.error(new Date(), "error handling message", err);
     } finally {
       closed.resolve();
     }
   })();
   return { closed: closed.promise, registered: registered.promise };
+};
+
+/**
+ * Establishes a WebSocket connection with the server.
+ * @param {ConnectOptions} opts - Options for establishing the connection.
+ * @returns {Promise<Connected>} A promise that resolves with the connection status.
+ */
+export const connectSW = (opts: ConnectOptions): Promise<Connected> => {
+  const closed = Promise.withResolvers<void>();
+  const registered = Promise.withResolvers<void>();
+  const worker = new Worker(import.meta.url, {
+    type: "module",
+    deno: { permissions: "inherit" },
+  });
+  worker.addEventListener("message", (message) => {
+    if (message.data === "closed") {
+      closed.resolve();
+    }
+    if (message.data === "registered") {
+      registered.resolve();
+    }
+  });
+  worker.postMessage(opts);
+
+  return Promise.resolve({
+    closed: closed.promise,
+    registered: registered.promise,
+  });
+};
+
+// @ts-ignore: "trust-me"
+self.onmessage = async (evt) => {
+  const { closed, registered } = await connectMainThread(evt.data);
+  // @ts-ignore: "trust-me"
+  closed.then(() => self.postMessage("closed"));
+  // @ts-ignore: "trust-me"
+  registered.then(() => self.postMessage("registered"));
+};
+
+/**
+ * Establishes a WebSocket connection with the server.
+ * @param {ConnectOptions} opts - Options for establishing the connection.
+ * @returns {Promise<Connected>} A promise that resolves with the connection status.
+ */
+export const connect = async (opts: ConnectOptions): Promise<Connected> => {
+  return opts.sw ? connectSW(opts) : await connectMainThread(opts);
 };
