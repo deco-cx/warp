@@ -16,6 +16,7 @@ const { registered } = await connect({
   localAddr: "http://localhost:8000",
   server: "ws://localhost:8001",
   apiKey: KEY,
+  sw: true,
 });
 
 await registered;
@@ -35,6 +36,7 @@ const resp = await fetch("http://localhost:8001", {
   body: (await Deno.open("./big.response.html")).readable,
 });
 const text = await resp.text();
+console.log({ text });
 console.log("TEXT", resp.headers);
 console.log("TOOK", performance.now() - start, "Ms");
 
@@ -49,15 +51,15 @@ const resp2 = await fetch("http://localhost:8000", {
   body: (await Deno.open("./big.response.html")).readable,
 });
 const text2 = await resp2.text();
-console.log("TEXT2", resp.headers);
+console.log("TEXT2", resp2.headers);
 console.log("TOOK2", performance.now() - start2, "Ms");
 
 console.log("EQUAL", text === text2);
-const ws = new WebSocket("ws://localhost:8001/connect-ws");
-ws.onmessage = (_msg) => {
-  console.log("MESSAGE CLIENT RECEIVED");
-};
-ws.onopen = () => {
-  ws.send(JSON.stringify({ pong: true }));
-  ws.close();
-};
+// const ws = new WebSocket("ws://localhost:8001/connect-ws");
+// ws.onmessage = (_msg) => {
+//   console.log("MESSAGE CLIENT RECEIVED");
+// };
+// ws.onopen = () => {
+//   ws.send(JSON.stringify({ pong: true }));
+//   ws.close();
+// };

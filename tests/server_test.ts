@@ -16,6 +16,7 @@ const _localServer = Deno.serve({
       return response;
     }
     await req.text();
+
     const cp = new Headers(req.headers);
     cp.set("x-server-reply", "true");
     return new Response((await Deno.open("./big.response.html")).readable, {

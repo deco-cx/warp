@@ -212,7 +212,9 @@ async function doFetch(
       ...state.client ? { client: state.client } : {},
       method: request.method,
       headers: request.headers,
-      body: request.body,
+      body: request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : request.body,
       signal,
     });
     await clientCh.send({
