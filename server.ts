@@ -82,17 +82,18 @@ export const serveHandler = (
     const url = new URL(req.url);
     if (url.pathname === connectPath) {
       const { socket, response } = Deno.upgradeWebSocket(req);
+      const clientVersion = url.searchParams.get(CLIENT_VERSION_QUERY_STRING);
+      const chPromise = clientVersion === null
+        ? makeWebSocket<ServerMessage, ClientMessage, string>(
+          socket,
+          jsonSerializer(),
+        )
+        : makeWebSocket<ServerMessage, ClientMessage, ArrayBuffer>(
+          socket,
+          dataViewerSerializer(),
+        );
       (async () => {
-        const clientVersion = url.searchParams.get(CLIENT_VERSION_QUERY_STRING);
-        const ch = clientVersion === null
-          ? await makeWebSocket<ServerMessage, ClientMessage, string>(
-            socket,
-            jsonSerializer(),
-          )
-          : await makeWebSocket<ServerMessage, ClientMessage, ArrayBuffer>(
-            socket,
-            dataViewerSerializer(),
-          );
+        const ch = await chPromise;
         const clientId = crypto.randomUUID();
         const hosts: string[] = [];
         const state: ServerConnectionState = {
