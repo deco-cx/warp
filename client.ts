@@ -46,9 +46,6 @@ export const connectMainThread = async (
   const client = typeof Deno.createHttpClient === "function"
     ? Deno.createHttpClient({
       allowHost: true,
-      proxy: {
-        url: opts.localAddr,
-      },
     })
     : undefined;
 
