@@ -208,13 +208,18 @@ async function doFetch(
   // Read from the stream
   const signal = clientCh.signal;
   try {
-    const response = await fetch(new URL(request.url, state.localAddr), {
-      ...state.client ? { client: state.client } : {},
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-      signal,
-    });
+    const response = await fetch(
+      new URL(request.url, state.localAddr),
+      {
+        ...state.client ? { client: state.client } : {},
+        method: request.method,
+        headers: state.client
+          ? { ...request.headers, host: request.domain }
+          : request.headers,
+        body: request.body,
+        signal,
+      },
+    );
     await clientCh.send({
       type: "response-start",
       id: request.id,
