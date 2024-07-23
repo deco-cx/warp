@@ -35,9 +35,17 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
     return;
   }
   const headers = new Headers();
-  Object.entries(message.headers).forEach(([key, value]: [string, string]) => {
-    headers.set(key, value);
-  });
+  Object.entries(message.headers).forEach(
+    ([key, value]: [string, string | Array<string>]) => {
+      if (typeof value === "string") {
+        headers.set(key, value);
+      } else if (Array.isArray(value)) {
+        value.forEach((v) => {
+          headers.append(key, v);
+        });
+      }
+    },
+  );
   const shouldBeNullBody = NULL_BODIES.includes(message.statusCode);
   const stream = !shouldBeNullBody && request.responseBodyChan
     ? makeReadableStream(request.responseBodyChan)

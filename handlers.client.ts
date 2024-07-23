@@ -220,13 +220,22 @@ async function doFetch(
         signal,
       },
     );
+
+    const headers: Record<string, Array<string>> = {};
+
+    for (const [key, value] of response.headers.entries()) {
+      headers[key] ??= [];
+      headers[key].push(value);
+    }
+
     await clientCh.send({
       type: "response-start",
       id: request.id,
       statusCode: response.status,
       statusMessage: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
+      headers,
     });
+
     const body = response?.body;
     const stream = body ? makeChanStream(body) : undefined;
     for await (const chunk of stream?.recv(signal) ?? []) {

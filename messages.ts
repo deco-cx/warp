@@ -19,7 +19,7 @@ export interface ResponseStartMessage {
   id: string;
   statusCode: number;
   statusMessage: string;
-  headers: Record<string, string>;
+  headers: Record<string, Array<string>>;
 }
 export interface DataMessage {
   type: "data";
