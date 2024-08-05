@@ -117,6 +117,7 @@ export const serveHandler = (
         } catch (_err) {
           // ignore
         } finally {
+          ch.out.close();
           delete serverStates[clientId];
           for (const host of hosts) {
             if (hostToClientId[host] === clientId) {
