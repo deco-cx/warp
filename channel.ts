@@ -12,11 +12,11 @@ export interface Channel<T> {
 export const link = (...signals: AbortSignal[]): AbortSignal => {
   const ctrl = new AbortController();
   for (const signal of signals) {
-    signal.onabort = (evt) => {
+    signal.addEventListener("abort", (evt) => {
       if (!ctrl.signal.aborted) {
         ctrl.abort(evt);
       }
-    };
+    });
   }
   return ctrl.signal;
 };
