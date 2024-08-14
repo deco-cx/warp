@@ -29,7 +29,7 @@ export interface ConnectOptions {
  * @property {Promise<void>} registered - A promise that resolves when the connection is registered.
  */
 export interface Connected {
-  closed: Promise<void>;
+  closed: Promise<Error | undefined>;
   registered: Promise<void>;
 }
 
@@ -41,7 +41,7 @@ export interface Connected {
 export const connectMainThread = async (
   opts: ConnectOptions,
 ): Promise<Connected> => {
-  const closed = Promise.withResolvers<void>();
+  const closed = Promise.withResolvers<Error | undefined>();
   const registered = Promise.withResolvers<void>();
   const client = typeof Deno.createHttpClient === "function"
     ? Deno.createHttpClient({
@@ -66,6 +66,7 @@ export const connectMainThread = async (
   const wsSockets: Record<string, WebSocket> = {};
 
   (async () => {
+    let reason: undefined | Error;
     const state: ClientState = {
       client,
       localAddr: opts.localAddr,
@@ -82,9 +83,10 @@ export const connectMainThread = async (
         }
       }
     } catch (err) {
+      reason = err;
       console.error(new Date(), "error handling message", err);
     } finally {
-      closed.resolve();
+      closed.resolve(reason);
     }
   })();
   return { closed: closed.promise, registered: registered.promise };
@@ -96,7 +98,7 @@ export const connectMainThread = async (
  * @returns {Promise<Connected>} A promise that resolves with the connection status.
  */
 export const connectSW = (opts: ConnectOptions): Promise<Connected> => {
-  const closed = Promise.withResolvers<void>();
+  const closed = Promise.withResolvers<Error | undefined>();
   const registered = Promise.withResolvers<void>();
   const worker = new Worker(import.meta.url, {
     type: "module",
@@ -104,7 +106,7 @@ export const connectSW = (opts: ConnectOptions): Promise<Connected> => {
   });
   worker.addEventListener("message", (message) => {
     if (message.data === "closed") {
-      closed.resolve();
+      closed.resolve(undefined);
     }
     if (message.data === "registered") {
       registered.resolve();
