@@ -167,10 +167,11 @@ export const makeWebSocket = <
 
 export const makeReadableStream = (
   ch: Channel<Uint8Array>,
+  signal?: AbortSignal,
 ): ReadableStream<Uint8Array> => {
   return new ReadableStream({
     async start(controller) {
-      for await (const content of ch.recv()) {
+      for await (const content of ch.recv(signal)) {
         controller.enqueue(content);
       }
       controller.close();

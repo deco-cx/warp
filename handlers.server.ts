@@ -48,7 +48,7 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
   );
   const shouldBeNullBody = NULL_BODIES.includes(message.statusCode);
   const stream = !shouldBeNullBody && request.responseBodyChan
-    ? makeReadableStream(request.responseBodyChan)
+    ? makeReadableStream(request.responseBodyChan, state.ch.out.signal)
     : undefined;
   const resp = new Response(stream, {
     status: message.statusCode,
