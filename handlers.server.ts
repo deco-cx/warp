@@ -62,7 +62,7 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
       request.responseObject.reject(
         new DOMException("Connection closed", "AbortError"),
       );
-      stream?.cancel("Request aborted");
+      stream?.cancel("Request aborted").catch((_err) => {});
     }
   });
   request.responseObject.resolve(resp);
