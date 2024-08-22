@@ -48,7 +48,7 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
   );
   const shouldBeNullBody = NULL_BODIES.includes(message.statusCode);
   const stream = !shouldBeNullBody && request.responseBodyChan
-    ? makeReadableStream(request.responseBodyChan)
+    ? makeReadableStream(request.responseBodyChan, state.ch.out.signal)
     : undefined;
   const resp = new Response(stream, {
     status: message.statusCode,
@@ -62,6 +62,7 @@ const onResponseStart: ClientMessageHandler<ResponseStartMessage> = (
       request.responseObject.reject(
         new DOMException("Connection closed", "AbortError"),
       );
+      request?.responseBodyChan?.close?.();
     }
   });
   request.responseObject.resolve(resp);
@@ -105,7 +106,7 @@ const onDataEnd: ClientMessageHandler<DataEndMessage> = (state, message) => {
   try {
     request.responseBodyChan?.close?.();
   } catch (_err) {
-    console.log(_err);
+    console.log(`error closing body chan`, _err);
   }
 };
 

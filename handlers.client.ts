@@ -56,7 +56,9 @@ const onRequestStart: ServerMessageHandler<RequestStartMessage> = async (
   if (!message.hasBody) {
     doFetch(message, state, state.ch.out, abortCtrl.signal).catch(
       ignoreIfClosed,
-    );
+    ).finally(() => {
+      delete state.requests[message.id];
+    });
   } else {
     const bodyData = makeChan<Uint8Array>();
     state.requests[message.id]!.body = bodyData;

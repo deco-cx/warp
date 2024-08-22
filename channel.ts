@@ -167,12 +167,17 @@ export const makeWebSocket = <
 
 export const makeReadableStream = (
   ch: Channel<Uint8Array>,
+  signal?: AbortSignal,
 ): ReadableStream<Uint8Array> => {
   return new ReadableStream({
     async start(controller) {
-      for await (const content of ch.recv()) {
+      for await (const content of ch.recv(signal)) {
         controller.enqueue(content);
       }
+      // Uncomment if necessary. this will send a signal to the controller
+      // if (signal?.aborted) {
+      //   controller.error(new Error("aborted"));
+      // }
       controller.close();
     },
     cancel() {
@@ -195,6 +200,10 @@ export const makeChanStream = (
     }
     chan.close();
   };
-  processStream().catch(console.error);
+  processStream().catch((err) => {
+    if (!err?.target?.aborted) {
+      console.error("error processing stream", err);
+    }
+  });
   return chan;
 };
