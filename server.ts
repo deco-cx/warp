@@ -165,6 +165,14 @@ export const serveHandler = (
         await ch.out.send(requestForward);
         const dataChan = req.body ? makeChanStream(req.body) : undefined;
         const linked = link(ch.out.signal, req.signal);
+        req.signal.addEventListener("abort", () => {
+          if (!ch.out.signal.aborted) {
+            ch.out.send({
+              type: "request-aborted",
+              id: messageId,
+            }).catch(() => {});
+          }
+        });
         (async () => {
           try {
             for await (const chunk of dataChan?.recv(linked) ?? []) {

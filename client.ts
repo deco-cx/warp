@@ -1,4 +1,4 @@
-import { type Channel, makeWebSocket } from "./channel.ts";
+import { makeWebSocket } from "./channel.ts";
 import denoJSON from "./deno.json" with { type: "json" };
 import { handleServerMessage } from "./handlers.client.ts";
 import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
@@ -62,7 +62,6 @@ export const connectMainThread = async (
     apiKey: opts.apiKey,
     domain: opts.domain,
   });
-  const requestBody: Record<string, Channel<Uint8Array>> = {};
   const wsSockets: Record<string, WebSocket> = {};
 
   (async () => {
@@ -71,7 +70,7 @@ export const connectMainThread = async (
       client,
       localAddr: opts.localAddr,
       live: false,
-      requestBody,
+      requests: {},
       wsSockets,
       ch,
     };

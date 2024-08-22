@@ -72,6 +72,11 @@ export interface RequestDataMessage {
   id: string;
   chunk: Uint8Array;
 }
+
+export interface RequestAbortedMessage {
+  type: "request-aborted";
+  id: string;
+}
 export interface RegisteredMessage {
   type: "registered";
   id: string;
@@ -82,6 +87,7 @@ export interface ErrorMessage {
   message: string;
 }
 export type ServerMessage =
+  | RequestAbortedMessage
   | WSMessage
   | WSConnectionClosed
   | RequestStartMessage
@@ -90,9 +96,13 @@ export type ServerMessage =
   | RegisteredMessage
   | ErrorMessage;
 
+export interface RequestState {
+  body?: Channel<ArrayBuffer>;
+  abortCtrl: AbortController;
+}
 export interface ClientState {
   ch: DuplexChannel<ClientMessage, ServerMessage>;
-  requestBody: Record<string, Channel<ArrayBuffer>>;
+  requests: Record<string, RequestState | undefined>;
   wsSockets: Record<string, WebSocket>;
   live: boolean;
   localAddr: string;
