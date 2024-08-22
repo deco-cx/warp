@@ -195,6 +195,6 @@ export const makeChanStream = (
     }
     chan.close();
   };
-  processStream().catch(console.error);
+  processStream().catch((err) => console.error(`error processing stream`, err));
   return chan;
 };

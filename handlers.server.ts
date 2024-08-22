@@ -106,7 +106,7 @@ const onDataEnd: ClientMessageHandler<DataEndMessage> = (state, message) => {
   try {
     request.responseBodyChan?.close?.();
   } catch (_err) {
-    console.log(_err);
+    console.log(`error closing body chan`, _err);
   }
 };
 
