@@ -1,6 +1,7 @@
 import {
   type Channel,
   ignoreIfClosed,
+  link,
   makeChan,
   makeChanStream,
   makeReadableStream,
@@ -11,6 +12,7 @@ import type {
   ClientState,
   ErrorMessage,
   RegisteredMessage,
+  RequestAbortedMessage,
   RequestDataEndMessage,
   RequestDataMessage,
   RequestStartMessage,
@@ -49,17 +51,22 @@ const onRequestStart: ServerMessageHandler<RequestStartMessage> = async (
     await handleWebSocket(message, state);
     return;
   }
+  const abortCtrl = new AbortController();
+  state.requests[message.id] = { abortCtrl };
   if (!message.hasBody) {
-    doFetch(message, state, state.ch.out).catch(ignoreIfClosed);
+    doFetch(message, state, state.ch.out, abortCtrl.signal).catch(
+      ignoreIfClosed,
+    );
   } else {
     const bodyData = makeChan<Uint8Array>();
-    state.requestBody[message.id] = bodyData;
+    state.requests[message.id]!.body = bodyData;
     doFetch(
       { ...message, body: makeReadableStream(bodyData) },
       state,
       state.ch.out,
+      abortCtrl.signal,
     ).catch(ignoreIfClosed).finally(() => {
-      delete state.requestBody[message.id];
+      delete state.requests[message.id];
     });
   }
 };
@@ -73,12 +80,24 @@ const onRequestData: ServerMessageHandler<RequestDataMessage> = async (
   state,
   message,
 ) => {
-  const reqBody = state.requestBody[message.id];
+  const reqBody = state.requests[message.id]?.body;
   if (!reqBody) {
     console.info("[req-data] req not found", message.id);
     return;
   }
   await reqBody.send?.(message.chunk);
+};
+
+/**
+ * Handler for the 'request-aborted' server message.
+ * @param {ClientState} state - The client state.
+ * @param {RequestAbortedMessage} message - The message data.
+ */
+const onRequestAborted: ServerMessageHandler<RequestAbortedMessage> = (
+  state,
+  message,
+) => {
+  state.requests[message.id]?.abortCtrl?.abort();
 };
 
 /**
@@ -90,7 +109,7 @@ const onRequestDataEnd: ServerMessageHandler<RequestDataEndMessage> = (
   state,
   message,
 ) => {
-  const reqBody = state.requestBody[message.id];
+  const reqBody = state.requests[message.id]?.body;
   if (!reqBody) {
     return;
   }
@@ -129,6 +148,7 @@ const handlersByType: Record<ServerMessage["type"], ServerMessageHandler<any>> =
   {
     registered,
     error,
+    "request-aborted": onRequestAborted,
     "request-start": onRequestStart,
     "request-data": onRequestData,
     "request-end": onRequestDataEnd,
@@ -204,9 +224,10 @@ async function doFetch(
   request: RequestStartMessage & { body?: ReadableStream },
   state: ClientState,
   clientCh: Channel<ClientMessage>,
+  reqSignal: AbortSignal,
 ) {
   // Read from the stream
-  const signal = clientCh.signal;
+  const signal = link(clientCh.signal, reqSignal);
   try {
     const response = await fetch(
       new URL(request.url, state.localAddr),
