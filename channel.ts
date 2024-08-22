@@ -196,7 +196,7 @@ export const makeChanStream = (
     chan.close();
   };
   processStream().catch((err) => {
-    if (err?.target?.name !== "AbortError") {
+    if (!err?.target?.aborted) {
       console.error("error processing stream", err);
     }
   });
