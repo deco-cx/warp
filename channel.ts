@@ -174,6 +174,9 @@ export const makeReadableStream = (
       for await (const content of ch.recv(signal)) {
         controller.enqueue(content);
       }
+      if (signal?.aborted) {
+        controller.error(new Error("aborted"));
+      }
       controller.close();
     },
     cancel() {
