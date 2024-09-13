@@ -63,6 +63,7 @@ export const serve = (options: ServeOptions): Deno.HttpServer<Deno.NetAddr> => {
   });
 };
 
+const CONNECTED_HOSTS_PATH = "/_hosts";
 /**
  * Creates a handler function for serving requests, with support for WebSocket connections
  * and forwarding requests to registered domains.
@@ -80,6 +81,13 @@ export const serveHandler = (
 
   return async (req) => {
     const url = new URL(req.url);
+    if (url.pathname === CONNECTED_HOSTS_PATH) {
+      return new Response(JSON.stringify(hostToClientId), {
+        headers: {
+          "content-type": "application/json",
+        },
+      });
+    }
     if (url.pathname === connectPath) {
       const { socket, response } = Deno.upgradeWebSocket(req);
       const clientVersion = url.searchParams.get(CLIENT_VERSION_QUERY_STRING);
