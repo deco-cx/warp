@@ -235,6 +235,7 @@ async function doFetch(
       new URL(request.url, state.localAddr),
       {
         ...state.client ? { client: state.client } : {},
+        redirect: "manual",
         method: request.method,
         headers: state.client
           ? { ...request.headers, host: request.domain }
