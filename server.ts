@@ -220,7 +220,7 @@ export class Warp implements DurableObject {
 }
 
 const RUN_SCRIPT =
-  "https://denopkg.com/deco-sites/mcp/run.ts";
+  "https://denopkg.com/deco-sites/mcp@0.1.0/run.ts";
 export default {
   fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
     const reqUrl = new URL(req.url);
