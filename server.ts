@@ -151,7 +151,7 @@ export const serveHandler = (
             ch.out.send({
               type: "request-aborted",
               id: messageId,
-            }).catch(() => {});
+            }).catch(() => { });
           }
         });
         (async () => {
@@ -231,7 +231,7 @@ export default {
         { status: 503 },
       );
     }
-    if (host === "deco.host" && reqUrl.pathname === "/") {
+    if (host === "mcp.deco.host" && reqUrl.pathname === "/") {
       return new Response(null, {
         status: 307,
         headers: {
