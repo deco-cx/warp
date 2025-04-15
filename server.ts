@@ -9,7 +9,6 @@ import type {
 import { upgradeWebSocket } from "./runtime.ts";
 import { dataViewerSerializer, jsonSerializer } from "./serializers.ts";
 
-
 /**
  * Represents options for configuring the server.
  * @typedef {Object} ServerOptions
@@ -152,7 +151,7 @@ export const serveHandler = (
             ch.out.send({
               type: "request-aborted",
               id: messageId,
-            }).catch(() => { });
+            }).catch(() => {});
           }
         });
         (async () => {
@@ -207,7 +206,6 @@ export const serveHandler = (
   };
 };
 
-
 export class Warp implements DurableObject {
   handler: (req: Request) => Promise<Response> | Response;
   constructor(_state: unknown, env: { API_KEY: string }) {
@@ -221,17 +219,28 @@ export class Warp implements DurableObject {
   }
 }
 
+const RUN_SCRIPT =
+  "https://raw.githubusercontent.com/deco-sites/mcp/refs/heads/main/run.ts";
 export default {
   fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
-    const host = req.headers.get("host") ?? new URL(req.url).searchParams.get("host");
+    const reqUrl = new URL(req.url);
+    const host = req.headers.get("host") ?? reqUrl.searchParams.get("host");
     if (host == null) {
       return new Response(
         "No registration for domain and/or remote service not available",
         { status: 503 },
-      )
+      );
+    }
+    if (host === "deco.host" && reqUrl.pathname === "/") {
+      return new Response(null, {
+        status: 307,
+        headers: {
+          location: RUN_SCRIPT,
+        },
+      });
     }
     const warp = env.WARP.idFromName(host);
     const durableObject = env.WARP.get(warp);
     return durableObject.fetch(req);
-  }
-}
+  },
+};

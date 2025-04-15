@@ -63,8 +63,9 @@ const checkUserAgentEquals = (platform: string): boolean => {
   return userAgent.startsWith(platform);
 };
 
-
-export const upgradeWebSocket = (req: Request): { socket: WebSocket; response: Response } => {
+export const upgradeWebSocket = (
+  req: Request,
+): { socket: WebSocket; response: Response } => {
   if (getRuntimeKey() === "deno") {
     return Deno.upgradeWebSocket(req);
   }

@@ -228,15 +228,15 @@ const register: ClientMessageHandler<RegisterMessage> = async (
  */
 // deno-lint-ignore no-explicit-any
 const handlersByType: Record<ClientMessage["type"], ClientMessageHandler<any>> =
-{
-  "response-start": onResponseStart,
-  data,
-  "data-end": onDataEnd,
-  "ws-closed": onWsClosed,
-  "ws-message": onWsMessage,
-  "ws-opened": onWsOpened,
-  register,
-};
+  {
+    "response-start": onResponseStart,
+    data,
+    "data-end": onDataEnd,
+    "ws-closed": onWsClosed,
+    "ws-message": onWsMessage,
+    "ws-opened": onWsOpened,
+    register,
+  };
 
 /**
  * Handles client messages received from the server.
