@@ -3,7 +3,10 @@ compatibility_flags = ["nodejs_compat"]
 name = "warp"
 main = "server.ts"
 compatibility_date = "2024-11-06"
-routes = [{ pattern = "*/*", zone_name = "deco.host" }]
+routes = [
+  { pattern = "*/*", zone_name = "deco.host" },
+  { pattern = "deco.host", custom_domain = true },
+]
 
 # Workers Logs
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
