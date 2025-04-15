@@ -4,5 +4,10 @@
   "exports": "./mod.ts",
   "tasks": {
     "check": "deno fmt && deno lint && deno check mod.ts"
+  },
+  "compilerOptions": {
+    "types": [
+      "@cloudflare/workers-types"
+    ]
   }
 }

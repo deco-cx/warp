@@ -1,0 +1,19 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.5.2",
+    "wrangler": "^3.91.0"
+  },
+  "scripts": {
+    "test": "rm kv || true && deno test -A --env-file=.test.vars --trace-leaks .",
+    "test-prod": "deno test -A --env-file=.dev.vars .",
+    "dev": "wrangler dev --port 8000",
+    "build": "wrangler deploy --dry-run --outdir=dist",
+    "deploy": "wrangler deploy"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

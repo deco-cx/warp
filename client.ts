@@ -1,5 +1,6 @@
 import { makeWebSocket } from "./channel.ts";
-import denoJSON from "./deno.json" with { type: "json" };
+// deno-lint-ignore no-import-assertions
+import denoJSON from "./deno.json" assert { type: "json" };
 import { handleServerMessage } from "./handlers.client.ts";
 import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
 import { dataViewerSerializer } from "./serializers.ts";
@@ -82,7 +83,7 @@ export const connectMainThread = async (
         }
       }
     } catch (err) {
-      reason = err;
+      reason = err as Error;
       console.error(new Date(), "error handling message", err);
     } finally {
       closed.resolve(reason);

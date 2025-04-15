@@ -1,5 +1,23 @@
 import type { Message, MessageSerializer } from "./channel.ts";
-import { ensureChunked } from "./server.ts";
+
+/**
+ * Ensures that the given chunk is in the form of a Uint8Array.
+ * If it's not already an array, it converts the provided object into a Uint8Array.
+ * @param {Uint8Array | Record<string, Uint8Array[number]>} chunk - The input chunk, which can be either a Uint8Array or an object.
+ * @returns {Uint8Array} The chunk converted into a Uint8Array.
+ */
+export const ensureChunked = (
+  chunk: Uint8Array | Record<string, Uint8Array[number]> & { length: number },
+): Uint8Array => {
+  if (Array.isArray(chunk)) {
+    return chunk as Uint8Array;
+  }
+  (chunk as { length: number }).length = Object.keys(chunk).length;
+  const arr = Uint8Array.from(
+    chunk,
+  );
+  return arr;
+};
 
 export const jsonSerializer = <TSend, TReceive>(): MessageSerializer<
   TSend,

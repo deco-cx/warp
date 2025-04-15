@@ -1,0 +1,22 @@
+#:schema node_modules/wrangler/config-schema.json
+compatibility_flags = ["nodejs_compat"]
+name = "warp"
+main = "server.ts"
+compatibility_date = "2024-11-06"
+routes = [{ pattern = "*/*", zone_name = "deco.host" }]
+
+# Workers Logs
+# Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+# Configuration: https://developers.cloudflare.com/workers/observability/logs/workers-logs/#enable-workers-logs
+[observability]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "WARP"
+class_name = "Warp"
+
+# Durable Object migrations.
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["Warp"]
