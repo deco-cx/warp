@@ -73,6 +73,8 @@ export const serveHandler = (
           socket,
           dataViewerSerializer(),
         );
+      socket?.accept?.();
+
       (async () => {
         const ch = await chPromise;
         const clientId = crypto.randomUUID();
