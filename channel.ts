@@ -162,6 +162,7 @@ export const makeWebSocket = <
     }
     socket.close();
   };
+  socket?.accept?.();
   return ch.promise;
 };
 
