@@ -6,29 +6,9 @@ import type {
   ServerConnectionState,
   ServerMessage,
 } from "./messages.ts";
+import { upgradeWebSocket } from "./runtime.ts";
 import { dataViewerSerializer, jsonSerializer } from "./serializers.ts";
 
-/**
- * Ensures that the given chunk is in the form of a Uint8Array.
- * If it's not already an array, it converts the provided object into a Uint8Array.
- * @param {Uint8Array | Record<string, Uint8Array[number]>} chunk - The input chunk, which can be either a Uint8Array or an object.
- * @returns {Uint8Array} The chunk converted into a Uint8Array.
- */
-export const ensureChunked = (
-  chunk: Uint8Array | Record<string, Uint8Array[number]> & { length: number },
-): Uint8Array => {
-  if (Array.isArray(chunk)) {
-    return chunk as Uint8Array;
-  }
-  (chunk as { length: number }).length = Object.keys(chunk).length;
-  const arr = Uint8Array.from(
-    chunk,
-  );
-  return arr;
-};
-
-const serverStates: Record<string, ServerConnectionState> = {};
-const hostToClientId: Record<string, string> = {};
 
 /**
  * Represents options for configuring the server.
@@ -63,7 +43,6 @@ export const serve = (options: ServeOptions): Deno.HttpServer<Deno.NetAddr> => {
   });
 };
 
-const CONNECTED_HOSTS_PATH = "/_hosts";
 /**
  * Creates a handler function for serving requests, with support for WebSocket connections
  * and forwarding requests to registered domains.
@@ -78,18 +57,12 @@ export const serveHandler = (
 ): (request: Request) => Response | Promise<Response> => {
   const apiKeys = options.apiKeys; // array of api keys (random strings)
   const connectPath = options?.connectPath ?? "/_connect";
-
+  const serverStates: Record<string, ServerConnectionState> = {};
+  const hostToClientId: Record<string, string> = {};
   return async (req) => {
     const url = new URL(req.url);
-    if (url.pathname === CONNECTED_HOSTS_PATH) {
-      return new Response(JSON.stringify(hostToClientId), {
-        headers: {
-          "content-type": "application/json",
-        },
-      });
-    }
     if (url.pathname === connectPath) {
-      const { socket, response } = Deno.upgradeWebSocket(req);
+      const { socket, response } = upgradeWebSocket(req);
       const clientVersion = url.searchParams.get(CLIENT_VERSION_QUERY_STRING);
       const chPromise = clientVersion === null
         ? makeWebSocket<ServerMessage, ClientMessage, string>(
@@ -178,7 +151,7 @@ export const serveHandler = (
             ch.out.send({
               type: "request-aborted",
               id: messageId,
-            }).catch(() => {});
+            }).catch(() => { });
           }
         });
         (async () => {
@@ -232,3 +205,32 @@ export const serveHandler = (
     );
   };
 };
+
+
+export class Warp implements DurableObject {
+  handler: (req: Request) => Promise<Response> | Response;
+  constructor(_state: unknown, env: { API_KEY: string }) {
+    this.handler = serveHandler({
+      apiKeys: [env.API_KEY],
+    });
+  }
+
+  fetch(req: Request): Promise<Response> | Response {
+    return this.handler(req);
+  }
+}
+
+export default {
+  fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
+    const host = req.headers.get("host") ?? new URL(req.url).searchParams.get("host");
+    if (host == null) {
+      return new Response(
+        "No registration for domain and/or remote service not available",
+        { status: 503 },
+      )
+    }
+    const warp = env.WARP.idFromName(host);
+    const durableObject = env.WARP.get(warp);
+    return durableObject.fetch(req);
+  }
+}

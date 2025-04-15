@@ -9,6 +9,7 @@ import type {
   WSConnectionClosed,
   WSMessage,
 } from "./messages.ts";
+import { upgradeWebSocket } from "./runtime.ts";
 import { arrayBufferSerializer } from "./serializers.ts";
 
 /**
@@ -145,7 +146,7 @@ const onWsOpened: ClientMessageHandler<DataEndMessage> = async (
     return;
   }
   try {
-    const { socket, response } = Deno.upgradeWebSocket(request.requestObject);
+    const { socket, response } = upgradeWebSocket(request.requestObject);
     request.responseObject.resolve(response);
     const socketChan = await makeWebSocket<
       ArrayBuffer,
@@ -227,15 +228,15 @@ const register: ClientMessageHandler<RegisterMessage> = async (
  */
 // deno-lint-ignore no-explicit-any
 const handlersByType: Record<ClientMessage["type"], ClientMessageHandler<any>> =
-  {
-    "response-start": onResponseStart,
-    data,
-    "data-end": onDataEnd,
-    "ws-closed": onWsClosed,
-    "ws-message": onWsMessage,
-    "ws-opened": onWsOpened,
-    register,
-  };
+{
+  "response-start": onResponseStart,
+  data,
+  "data-end": onDataEnd,
+  "ws-closed": onWsClosed,
+  "ws-message": onWsMessage,
+  "ws-opened": onWsOpened,
+  register,
+};
 
 /**
  * Handles client messages received from the server.
