@@ -151,7 +151,7 @@ export const serveHandler = (
             ch.out.send({
               type: "request-aborted",
               id: messageId,
-            }).catch(() => { });
+            }).catch(() => {});
           }
         });
         (async () => {
@@ -219,8 +219,7 @@ export class Warp implements DurableObject {
   }
 }
 
-const RUN_SCRIPT =
-  "https://denopkg.com/deco-sites/mcp@0.1.5/run.ts";
+const RUN_SCRIPT = "https://cdn.jsdelivr.net/gh/deco-sites/mcp@0.1.5/run.ts";
 export default {
   fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
     const reqUrl = new URL(req.url);
