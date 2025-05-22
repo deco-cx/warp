@@ -79,12 +79,23 @@ function parseMessage(
   // Read the metadata
   const metadataUint8Array = new Uint8Array(buffer, 4, metadataLength);
   const metadataString = new TextDecoder().decode(metadataUint8Array);
-  const metadata = JSON.parse(metadataString);
 
   // Read the binary data
   const binaryData = new Uint8Array(buffer, 4 + metadataLength);
+  try {
+    const metadata = JSON.parse(metadataString);
 
-  return { metadata, binaryData };
+    return { metadata, binaryData };
+  } catch (error) {
+    console.log({
+      error,
+      buffer,
+      binaryData,
+      metadataString,
+      metadataUint8Array,
+    });
+    return { metadata: "", binaryData };
+  }
 }
 
 export const arrayBufferSerializer = (): MessageSerializer<
