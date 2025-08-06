@@ -41,11 +41,12 @@ export const connect = async (
 ): Promise<Connected> => {
   const closed = Promise.withResolvers<Error | undefined>();
   const registered = Promise.withResolvers<void>();
-  const client = typeof Deno.createHttpClient === "function"
-    ? Deno.createHttpClient({
-      allowHost: true,
-    })
-    : undefined;
+  const client =
+    typeof Deno === "object" && typeof Deno.createHttpClient === "function"
+      ? Deno.createHttpClient({
+        allowHost: true,
+      })
+      : undefined;
 
   const socket = new WebSocket(
     `${opts.server}/_connect?${CLIENT_VERSION_QUERY_STRING}=${denoJSON.version}`,
