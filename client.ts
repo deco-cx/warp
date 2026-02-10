@@ -1,10 +1,10 @@
 import { makeWebSocket } from "./channel.ts";
+import { CLIENT_VERSION_QUERY_STRING } from "./constants.ts";
 import denoJSON from "./deno.json" with { type: "json" };
 import { handleServerMessage } from "./handlers.client.ts";
 import type { ClientMessage, ClientState, ServerMessage } from "./messages.ts";
 import { dataViewerSerializer } from "./serializers.ts";
 
-export const CLIENT_VERSION_QUERY_STRING = "v";
 /**
  * Options for establishing a connection.
  * @typedef {Object} ConnectOptions
