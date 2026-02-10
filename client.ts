@@ -14,10 +14,10 @@ export const CLIENT_VERSION_QUERY_STRING = "v";
  * @property {string} localAddr - The local address for the WebSocket connection.
  */
 export interface ConnectOptions {
-  apiKey: string;
-  domain: string;
-  server: string;
-  localAddr: string;
+	apiKey: string;
+	domain: string;
+	server: string;
+	localAddr: string;
 }
 
 /**
@@ -26,9 +26,10 @@ export interface ConnectOptions {
  * @property {Promise<void>} closed - A promise that resolves when the connection is closed.
  * @property {Promise<void>} registered - A promise that resolves when the connection is registered.
  */
-export interface Connected {
-  closed: Promise<Error | undefined>;
-  registered: Promise<void>;
+export interface Connected extends Disposable {
+	closed: Promise<Error | undefined>;
+	registered: Promise<void>;
+	close: () => void;
 }
 
 /**
@@ -36,56 +37,70 @@ export interface Connected {
  * @param {ConnectOptions} opts - Options for establishing the connection.
  * @returns {Promise<Connected>} A promise that resolves with the connection status.
  */
-export const connect = async (
-  opts: ConnectOptions,
-): Promise<Connected> => {
-  const closed = Promise.withResolvers<Error | undefined>();
-  const registered = Promise.withResolvers<void>();
-  const client =
-    typeof Deno === "object" && typeof Deno.createHttpClient === "function"
-      ? Deno.createHttpClient({
-        allowHost: true,
-      })
-      : undefined;
+export const connect = async (opts: ConnectOptions): Promise<Connected> => {
+	const closed = Promise.withResolvers<Error | undefined>();
+	const registered = Promise.withResolvers<void>();
+	const client =
+		typeof Deno === "object" && typeof Deno.createHttpClient === "function"
+			? Deno.createHttpClient({
+					allowHost: true,
+				})
+			: undefined;
 
-  const socket = new WebSocket(
-    `${opts.server}/_connect?${CLIENT_VERSION_QUERY_STRING}=${denoJSON.version}`,
-  );
-  const ch = await makeWebSocket<ClientMessage, ServerMessage, ArrayBuffer>(
-    socket,
-    dataViewerSerializer(),
-  );
-  await ch.out.send({
-    id: crypto.randomUUID(),
-    type: "register",
-    apiKey: opts.apiKey,
-    domain: opts.domain,
-  });
-  const wsSockets: Record<string, WebSocket> = {};
+	const socket = new WebSocket(
+		`${opts.server}/_connect?${CLIENT_VERSION_QUERY_STRING}=${denoJSON.version}`,
+	);
+	const ch = await makeWebSocket<ClientMessage, ServerMessage, ArrayBuffer>(
+		socket,
+		dataViewerSerializer(),
+	);
+	await ch.out.send({
+		id: crypto.randomUUID(),
+		type: "register",
+		apiKey: opts.apiKey,
+		domain: opts.domain,
+	});
+	const wsSockets: Record<string, WebSocket> = {};
 
-  (async () => {
-    let reason: undefined | Error;
-    const state: ClientState = {
-      client,
-      localAddr: opts.localAddr,
-      live: false,
-      requests: {},
-      wsSockets,
-      ch,
-    };
-    try {
-      for await (const message of ch.in.recv()) {
-        await handleServerMessage(state, message);
-        if (state.live) {
-          registered.resolve();
-        }
-      }
-    } catch (err) {
-      reason = err as Error;
-      console.error(new Date(), "error handling message", err);
-    } finally {
-      closed.resolve(reason);
-    }
-  })();
-  return { closed: closed.promise, registered: registered.promise };
+	(async () => {
+		let reason: undefined | Error;
+		const state: ClientState = {
+			client,
+			localAddr: opts.localAddr,
+			live: false,
+			requests: {},
+			wsSockets,
+			ch,
+		};
+		try {
+			for await (const message of ch.in.recv()) {
+				await handleServerMessage(state, message);
+				if (state.live) {
+					registered.resolve();
+				}
+			}
+		} catch (err) {
+			reason = err as Error;
+			console.error(new Date(), "error handling message", err);
+		} finally {
+			closed.resolve(reason);
+		}
+	})();
+	const close = () => {
+		try {
+			socket.close();
+			ch.in.close();
+			ch.out.close();
+		} catch {
+			// ignore
+		}
+	};
+	return {
+		closed: closed.promise,
+		registered: registered.promise,
+		close,
+		[Symbol.dispose]: () => {
+			close();
+		},
+	};
 };
