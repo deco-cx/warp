@@ -27,7 +27,7 @@ export interface ConnectOptions {
  * @property {Promise<void>} registered - A promise that resolves when the connection is registered.
  */
 export interface Connected extends Disposable {
-	closed: Promise<Error | undefined>;
+	closed: Promise<Error | { intentional: boolean } | undefined>;
 	registered: Promise<void>;
 	close: () => void;
 }
@@ -38,7 +38,9 @@ export interface Connected extends Disposable {
  * @returns {Promise<Connected>} A promise that resolves with the connection status.
  */
 export const connect = async (opts: ConnectOptions): Promise<Connected> => {
-	const closed = Promise.withResolvers<Error | undefined>();
+	const closed = Promise.withResolvers<
+		Error | undefined | { intentional: boolean }
+	>();
 	const registered = Promise.withResolvers<void>();
 	const client =
 		typeof Deno === "object" && typeof Deno.createHttpClient === "function"
@@ -63,7 +65,7 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
 	const wsSockets: Record<string, WebSocket> = {};
 
 	(async () => {
-		let reason: undefined | Error;
+		let reason: undefined | Error | { intentional: boolean };
 		const state: ClientState = {
 			client,
 			localAddr: opts.localAddr,
@@ -91,6 +93,7 @@ export const connect = async (opts: ConnectOptions): Promise<Connected> => {
 			socket.close();
 			ch.in.close();
 			ch.out.close();
+			reason = { intentional: true };
 		} catch {
 			// ignore
 		}
