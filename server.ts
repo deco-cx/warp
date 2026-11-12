@@ -1,5 +1,6 @@
 import { link, makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
 import { CLIENT_VERSION_QUERY_STRING } from "./constants.ts";
+import { canRegister, stripCookieDomain } from "./decohost.ts";
 import { handleClientMessage } from "./handlers.server.ts";
 import type {
 	ClientMessage,
@@ -27,6 +28,11 @@ export interface ServeOptions extends HandlerOptions {
 export interface HandlerOptions {
 	apiKeys: string[];
 	connectPath?: string;
+	/**
+	 * Extra policy for which domains a connection may register.
+	 * `connectReq` is the WebSocket upgrade request. Defaults to allowing any domain.
+	 */
+	canRegister?: (domain: string, connectReq: Request) => boolean;
 }
 
 /**
@@ -84,6 +90,15 @@ export const serveHandler = (
 					ch,
 					controller: {
 						link: (host) => {
+							if (options.canRegister && !options.canRegister(host, req)) {
+								return "Domain not allowed";
+							}
+							// First live registration wins: a second client must never
+							// silently take over a domain that is still connected.
+							const owner = hostToClientId[host];
+							if (owner && owner !== clientId && owner in serverStates) {
+								return "Domain already registered";
+							}
 							hosts.push(host);
 							hostToClientId[host] = clientId;
 						},
@@ -217,6 +232,7 @@ export class Warp implements DurableObject {
 	constructor(_state: unknown, env: { API_KEY: string }) {
 		this.handler = serveHandler({
 			apiKeys: [env.API_KEY],
+			canRegister,
 		});
 	}
 
@@ -227,7 +243,7 @@ export class Warp implements DurableObject {
 
 const RUN_SCRIPT = "https://cdn.jsdelivr.net/gh/deco-sites/mcp@0.1.5/run.ts";
 export default {
-	fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
+	async fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
 		const reqUrl = new URL(req.url);
 		const host = req.headers.get("host") ?? reqUrl.searchParams.get("host");
 		if (host == null) {
@@ -246,6 +262,6 @@ export default {
 		}
 		const warp = env.WARP.idFromName(host);
 		const durableObject = env.WARP.get(warp);
-		return durableObject.fetch(req);
+		return stripCookieDomain(await durableObject.fetch(req));
 	},
 };

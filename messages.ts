@@ -110,7 +110,8 @@ export interface ClientState {
 }
 
 export interface ClientHostController {
-  link: (host: string) => void;
+  /** Links `host` to this client; returns the rejection reason when it can't. */
+  link: (host: string) => string | undefined;
 }
 export interface ServerConnectionState {
   clientId: string;
