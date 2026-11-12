@@ -205,13 +205,7 @@ const register: ClientMessageHandler<RegisterMessage> = async (
 ) => {
   if (state.apiKeys.includes(message.apiKey)) {
     const rejected = state.controller.link(message.domain);
-    if (rejected) {
-      console.error(
-        new Date(),
-        "Registration rejected, stopping connection",
-        message.domain,
-        rejected,
-      );
+    if (rejected) { // already logged by link()
       await state.ch.out.send({ type: "error", message: rejected });
       state.socket.close();
       return;

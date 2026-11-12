@@ -1,6 +1,6 @@
 import { assertEquals } from "jsr:@std/assert@^1";
 import { connect, type ConnectOptions } from "../client.ts";
-import { canRegister, stripCookieDomain } from "../decohost.ts";
+import { canRegister, canTakeOver, stripCookieDomain } from "../decohost.ts";
 import { type HandlerOptions, serveHandler } from "../server.ts";
 
 const KEY = "test-key";
@@ -77,16 +77,45 @@ Deno.test("deco.host policy: only the connected <env>--<site> host", () => {
   }
 });
 
+Deno.test({
+  name: "canTakeOver=true lets a new connection replace the live owner",
+  ...leaky,
+  fn: async () => {
+    const server = tunnelServer({ canTakeOver: () => true });
+    const opts = {
+      apiKey: KEY,
+      domain: DOMAIN,
+      server: `ws://localhost:${server.addr.port}`,
+      localAddr: "http://localhost:1",
+    };
+    assertEquals((await register(opts)).outcome, "registered");
+    assertEquals((await register(opts)).outcome, "registered");
+    await server.shutdown();
+  },
+});
+
+Deno.test("deco.host policy: only the same IP takes over", () => {
+  const from = (ip?: string) =>
+    new Request("https://x", {
+      headers: ip ? { "cf-connecting-ip": ip } : {},
+    });
+  assertEquals(canTakeOver(from("1.2.3.4"), from("1.2.3.4")), true);
+  assertEquals(canTakeOver(from("5.6.7.8"), from("1.2.3.4")), false);
+  assertEquals(canTakeOver(from(), from()), false);
+});
+
 Deno.test("deco.host policy: Set-Cookie Domain is stripped", () => {
   const res = new Response("ok", {
     headers: [
       ["set-cookie", "a=1; Domain=deco.host; Path=/"],
       ["set-cookie", "b=2; Path=/; domain=.deco.host; Secure"],
+      ["set-cookie", "c=3; Domain =deco.host"],
     ],
   });
   assertEquals(stripCookieDomain(res).headers.getSetCookie(), [
     "a=1; Path=/",
     "b=2; Path=/; Secure",
+    "c=3",
   ]);
 
   const noCookies = new Response("ok");

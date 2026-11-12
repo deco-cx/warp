@@ -158,6 +158,7 @@ const handlersByType: Record<ServerMessage["type"], ServerMessageHandler<any>> =
     "request-end": onRequestDataEnd,
     "ws-closed": onWsClosed,
     "ws-message": onWsMessage,
+    ping: () => {},
   };
 
 /**
