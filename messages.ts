@@ -94,7 +94,13 @@ export type ServerMessage =
   | RequestDataEndMessage
   | RequestDataMessage
   | RegisteredMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | PingMessage;
+
+/** Server keepalive. Clients ignore it (older ones drop unknown types too). */
+export interface PingMessage {
+  type: "ping";
+}
 
 export interface RequestState {
   body?: Channel<ArrayBuffer>;
@@ -110,7 +116,8 @@ export interface ClientState {
 }
 
 export interface ClientHostController {
-  link: (host: string) => void;
+  /** Links `host` to this client; returns the rejection reason when it can't. */
+  link: (host: string) => string | undefined;
 }
 export interface ServerConnectionState {
   clientId: string;
@@ -119,6 +126,8 @@ export interface ServerConnectionState {
   controller: ClientHostController;
   ongoingRequests: Record<string, RequestObject>;
   apiKeys: string[];
+  /** The WebSocket upgrade request this connection came in on. */
+  connectReq: Request;
 }
 export type ServerMessageHandler<
   TServerMessage extends ServerMessage = ServerMessage,

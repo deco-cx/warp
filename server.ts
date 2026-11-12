@@ -1,5 +1,6 @@
 import { link, makeChan, makeChanStream, makeWebSocket } from "./channel.ts";
 import { CLIENT_VERSION_QUERY_STRING } from "./constants.ts";
+import { canRegister, canTakeOver, stripCookieDomain } from "./decohost.ts";
 import { handleClientMessage } from "./handlers.server.ts";
 import type {
 	ClientMessage,
@@ -27,7 +28,22 @@ export interface ServeOptions extends HandlerOptions {
 export interface HandlerOptions {
 	apiKeys: string[];
 	connectPath?: string;
+	/**
+	 * Extra policy for which domains a connection may register.
+	 * `connectReq` is the WebSocket upgrade request. Defaults to allowing any domain.
+	 */
+	canRegister?: (domain: string, connectReq: Request) => boolean;
+	/**
+	 * Whether a new connection may replace the live owner of a domain
+	 * (e.g. the same developer reconnecting over a socket that died silently).
+	 * Defaults to never: the first live registration wins.
+	 */
+	canTakeOver?: (connectReq: Request, ownerConnectReq: Request) => boolean;
 }
+
+// With no traffic nothing is ever written to a dead socket, so it would hold
+// its domain forever. A periodic write makes a dead socket fail and clean up.
+const KEEPALIVE_MS = 30_000;
 
 /**
  * Starts the Warp server.
@@ -84,14 +100,40 @@ export const serveHandler = (
 					ch,
 					controller: {
 						link: (host) => {
+							const owner = hostToClientId[host];
+							const live =
+								owner && owner !== clientId ? serverStates[owner] : undefined;
+							let rejected: string | undefined;
+							if (options.canRegister && !options.canRegister(host, req)) {
+								rejected = "Domain not allowed";
+							} else if (live && !options.canTakeOver?.(req, live.connectReq)) {
+								// A second client must never silently take over a live domain.
+								rejected = "Domain already registered";
+							}
+							console.log(
+								JSON.stringify({
+									event: "warp.register",
+									domain: host,
+									clientId,
+									rejected,
+									takeover: !!live && !rejected,
+									ip: req.headers.get("cf-connecting-ip"),
+								}),
+							);
+							if (rejected) return rejected;
 							hosts.push(host);
 							hostToClientId[host] = clientId;
 						},
 					},
 					ongoingRequests: {},
 					apiKeys,
+					connectReq: req,
 				};
 				serverStates[state.clientId] = state;
+				const keepalive = setInterval(
+					() => ch.out.send({ type: "ping" }).catch(() => {}),
+					KEEPALIVE_MS,
+				);
 				try {
 					for await (const message of ch.in.recv(req.signal)) {
 						await handleClientMessage(state, message);
@@ -99,6 +141,7 @@ export const serveHandler = (
 				} catch (_err) {
 					// ignore
 				} finally {
+					clearInterval(keepalive);
 					delete serverStates[clientId];
 					for (const host of hosts) {
 						if (hostToClientId[host] === clientId) {
@@ -217,6 +260,8 @@ export class Warp implements DurableObject {
 	constructor(_state: unknown, env: { API_KEY: string }) {
 		this.handler = serveHandler({
 			apiKeys: [env.API_KEY],
+			canRegister,
+			canTakeOver,
 		});
 	}
 
@@ -227,7 +272,7 @@ export class Warp implements DurableObject {
 
 const RUN_SCRIPT = "https://cdn.jsdelivr.net/gh/deco-sites/mcp@0.1.5/run.ts";
 export default {
-	fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
+	async fetch(req: Request, env: { WARP: DurableObjectNamespace }) {
 		const reqUrl = new URL(req.url);
 		const host = req.headers.get("host") ?? reqUrl.searchParams.get("host");
 		if (host == null) {
@@ -246,6 +291,6 @@ export default {
 		}
 		const warp = env.WARP.idFromName(host);
 		const durableObject = env.WARP.get(warp);
-		return durableObject.fetch(req);
+		return stripCookieDomain(await durableObject.fetch(req));
 	},
 };
